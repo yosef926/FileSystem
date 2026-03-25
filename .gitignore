@@ -1,0 +1,52 @@
+# ==========================================
+# 1. ESSENTIAL PROJECT FILES (FORCE TRACK)
+# ==========================================
+!Gallery/
+!galleryDB.db
+!*.cpp
+!*.h
+!*.py
+!*.sln
+!*.vcxproj
+!DB/**
+
+# ==========================================
+# 2. VISUAL STUDIO JUNK (IGNORE)
+# ==========================================
+.vs/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+*.user
+*.suo
+*.unsuccessfulbuild
+*.IPCH
+*.pch
+*.obj
+*.pdb
+*.tlog
+*.lastbuildstate
+*.idb
+*.ilk
+*.iobj
+*.ipdb
+
+# ==========================================
+# 3. PYTHON JUNK (IGNORE)
+# ==========================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# ==========================================
+# 4. SYSTEM & TEMP (IGNORE)
+# ==========================================
+Thumbs.db
+Desktop.ini
+*.tmp
+*.log
