@@ -13,7 +13,7 @@
 
 class File {
 private:
-    struct file_entry {
+    struct inode {
         char name[NAME_SIZE];
         uint32_t number_of_sectors;
         uint32_t file_size;
@@ -24,7 +24,8 @@ private:
 public:
     File() = default;
     File(std::string name);
-    
-    file_entry _entry;
+    friend std::ostream& operator<< (std::ostream& stream, const File& file);
+
+    inode _entry;
 };
 #endif // __MYFS_H__
