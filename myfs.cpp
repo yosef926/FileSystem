@@ -123,7 +123,6 @@ std::vector<int> MyFs::write_to_new_sectors(std::string& content, File& file)
 		written_sectors.push_back(freeSectorNumber);
 
 		uint32_t addr = CONTENT_ADDRESS + (freeSectorNumber * SECTOR_SIZE);
-		std::cout << "The free sector that was found is: " << freeSectorNumber << std::endl;
 
 		blkdevsim->write(addr, curr_sector_content.size(), curr_sector_content.c_str());
 	}
@@ -140,12 +139,10 @@ std::vector<int> MyFs::append_content_to_file(std::string& content, File& file)
 
 	if (remaining_space_in_last_sector >= 0)
 	{
-		std::cout << 1 << std::endl;
 		return append_to_last_sector(content, file, last_sector_addr, remaining_space_in_last_sector);
 	}
 	else
 	{
-		std::cout << 2 << std::endl;
 		return write_to_new_sectors(content, file);
 	}
 }
@@ -180,12 +177,7 @@ int MyFs::calc_remain_space_in_last_sector(const File& file, uint32_t last_secto
 	/* no '\0' in str, means no more space in this sector, 
 	so I made sure the return equation will be negetive, 
 	to make sure the if-statement in the function that called this function will also be negetive*/
-	if (end_content_index == -1)
-	{
-		std::cout << "No more space" << std::endl;
-		return -1;
-	}
-	std::cout << "There is more space" << std::endl;
+	if (end_content_index == -1) return -1;
 	return SECTOR_SIZE - end_content_index;
 }
 
@@ -317,7 +309,6 @@ bool MyFs::is_path_exist(const dir_list& dirent, const std::string& file_name)
 {
 	for (size_t i = 0; i < dirent.size(); i++)
 	{
-		//std::cout << "DB fileName: " << dirent[i] << ", target File: " << file_name << std::endl;
 		if (!std::strncmp((char*)dirent[i]._entry.name, file_name.c_str(), NAME_SIZE)) return true;
 	}
 	return false;
