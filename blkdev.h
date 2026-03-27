@@ -8,10 +8,11 @@ public:
 	BlockDeviceSimulator(std::string fname);
 	~BlockDeviceSimulator();
 
-	void read(int addr, int size, char *ans);
-	void write(int addr, int size, const char *data);
+	void read(int addr, char *ans);
+	void write(int addr, const char *data);
 
 	static const int DEVICE_SIZE = 1024 * 1024;
+	static const int SECTOR_SIZE = 1024;
 
 private:
 	int fd;

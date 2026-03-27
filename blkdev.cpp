@@ -42,10 +42,10 @@ BlockDeviceSimulator::~BlockDeviceSimulator() {
 	close(fd);
 }
 
-void BlockDeviceSimulator::read(int addr, int size, char *ans) {
-	memcpy(ans, filemap + addr, size);
+void BlockDeviceSimulator::read(int addr, char *ans) {
+	memcpy(ans, filemap + addr, SECTOR_SIZE);
 }
 
-void BlockDeviceSimulator::write(int addr, int size, const char *data) {
-	memcpy(filemap + addr, data, size);
+void BlockDeviceSimulator::write(int addr, const char *data) {
+	memcpy(filemap + addr, data, SECTOR_SIZE);
 }

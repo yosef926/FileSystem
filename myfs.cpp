@@ -25,7 +25,6 @@ MyFs::MyFs(BlockDeviceSimulator *blkdevsim_):blkdevsim(blkdevsim_) {
 
 
 void MyFs::format() {
-	//Formatting the fs.
 	fill_file_with_null();
 
 	insert_fs_headers();
@@ -233,9 +232,14 @@ MyFs::dir_list MyFs::list_dir(const std::string& path_str) {
 
 void MyFs::fill_file_with_null()
 {
-	std::vector<char> buffer(blkdevsim->DEVICE_SIZE, 0);
+	std::vector<char> buffer(SECTOR_SIZE, 0);
+	uint32_t addr = 0;
 
-	blkdevsim->write(0, buffer.size(), buffer.data());
+	while (addr != blkdevsim->DEVICE_SIZE)
+	{
+		blkdevsim->write(addr, buffer.data());
+		addr += SECTOR_SIZE;
+	}
 }
 
 
