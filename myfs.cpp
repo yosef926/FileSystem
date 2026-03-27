@@ -26,12 +26,18 @@ MyFs::MyFs(BlockDeviceSimulator *blkdevsim_):blkdevsim(blkdevsim_) {
 
 void MyFs::format() {
 	//Formatting the fs.
-	fillFileWithNull();
+	fill_file_with_null();
 
-	// put the headers in place
-	insertFsHeaders();
+	insert_fs_headers();
+
+	insert_root_folder();
 }
 
+
+void MyFs::insert_root_folder()
+{
+	
+}
 
 void MyFs::create_file(const std::string& path_str, bool directory) {
 	dir_list dirent = list_dir("/");
@@ -44,6 +50,8 @@ void MyFs::create_file(const std::string& path_str, bool directory) {
 	uint32_t addr;
 	File newFile(path_str);
 	std::fill(std::begin(newFile._entry.data_locations), std::end(newFile._entry.data_locations), -1);
+
+	newFile._entry.inode_number = dirent.size() + 1;
 
 	if (!directory)
 	{

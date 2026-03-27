@@ -94,8 +94,9 @@ public:
 	 */
 	dir_list list_dir(const std::string& path_str);
 
-	void fillFileWithNull();
-	void insertFsHeaders();
+	void fill_file_with_null();
+	void insert_fs_headers();
+	void insert_root_folder();
 	int find_free_sector();
 	bool is_path_exist(const dir_list& dirent, const std::string& file_name);
 	int find_inode_number(const std::string& file_name, const dir_list& dirent);

@@ -15,6 +15,7 @@ class File {
 private:
     struct inode {
         char name[NAME_SIZE];
+        uint16_t inode_number;
         uint32_t number_of_sectors;
         uint32_t file_size;
         uint8_t is_dir;
