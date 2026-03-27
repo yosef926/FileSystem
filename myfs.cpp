@@ -59,14 +59,17 @@ void MyFs::insert_fs_headers()
 void MyFs::insert_root_folder()
 {
 	char buffer[SECTOR_SIZE] = {0};
+
 	File new_file("/");
 
-	inode* entry_ptr = reinterpret_cast<inode*>(buffer);
+	new_file._entry.inode_number = 0;
+	new_file._entry.is_dir = 1;
+	new_file._entry.file_size = 0;
+	new_file._entry.number_of_sectors = 0;
 
-	std::fill(std::begin(entry_ptr->data_locations), std::end(entry_ptr->data_locations), -1);
-	entry_ptr->inode_number = 0;
-	entry_ptr->number_of_sectors = 0;
-	entry_ptr->is_dir = 1;
+	std::fill(std::begin(new_file._entry.data_locations), std::end(new_file._entry.data_locations), -1); // 0xFF
+
+	std::memcpy(buffer, &new_file._entry, sizeof(inode));
 
 	blkdevsim->write(INODE_TABLE_ADDRESS, buffer);
 }
