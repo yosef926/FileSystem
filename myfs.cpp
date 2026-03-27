@@ -110,7 +110,8 @@ std::string MyFs::get_content(const std::string& path_str) {
 
 	for (size_t i = 0; i < file._entry.number_of_sectors; i++)
 	{
-		blkdevsim->read(CONTENT_ADDRESS + (file._entry.data_locations[i] * SECTOR_SIZE), SECTOR_SIZE, sector_buffer);
+		uint32_t addr = CONTENT_ADDRESS + (file._entry.data_locations[i] * SECTOR_SIZE);
+		blkdevsim->read(addr, sector_buffer);
 		ans.append(sector_buffer, SECTOR_SIZE);
 	}
 
