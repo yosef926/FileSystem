@@ -99,11 +99,18 @@ void MyFs::create_file(const std::string& path_str, bool directory) {
 	blkdevsim->write(addr, buffer);
 }
 
+File MyFs::find_file(const std::string& path_str, const dir_list& dirent)
+{
+	for (const File& file : dirent)
+	{
+		if (std::string(file._entry.name) == path_str) return file;
+	}
+	throw std::runtime_error("File not found: " + path_str);
+}
 
 std::string MyFs::get_content(const std::string& path_str) {
 	dir_list dirent = list_dir("/");
-	int inode_number = find_inode_number(path_str, dirent);
-	File file = dirent[inode_number];
+	File file = find_file(path_str, dirent);
 
 	std::string ans = "";
 	char sector_buffer[SECTOR_SIZE];

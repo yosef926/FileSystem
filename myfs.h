@@ -107,6 +107,7 @@ public:
 	std::vector<int> write_to_new_sectors(std::string& content, File& file);
 	std::vector<int> append_content_to_file(std::string& content, File& file);
 	int calc_remain_space_in_last_sector(const File& file, uint32_t last_sector_addr);
+	File find_file(const std::string& path_str, const dir_list& dirent);
 };
 
 #endif // __MYFS_H__
