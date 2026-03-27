@@ -13,24 +13,6 @@
 
 class MyFs {
 private:
-
-	/**
-	 * This struct represents the first bytes of a myfs filesystem.
-	 * It holds some magic characters and a number indicating the version.
-	 * Upon class construction, the magic and the header are tested - if
-	 * they both exist than the file is assumed to contain a valid myfs
-	 * instance. Otherwise, the blockdevice is formated and a new instance is
-	 * created.
-	 */
-	struct myfs_header {
-		uint8_t magic[4];
-		uint8_t version;
-		uint16_t sector_size;
-		uint16_t bitMap_address;
-		uint16_t inode_table_address;
-		uint16_t content_address;
-	};
-
 	// Global Constants for the Filesystem
 	BlockDeviceSimulator *blkdevsim;
 	static constexpr uint8_t CURR_VERSION = 0x03;
@@ -43,11 +25,22 @@ private:
 
 	static constexpr uint8_t MYFS_MAGIC[4] = { 'M', 'Y', 'F', 'S' };	
 
+	#pragma pack(push, 1)
+	struct myfs_header {
+		uint8_t magic[sizeof(MYFS_MAGIC)];
+		uint8_t version;
+		uint16_t sector_size;
+		uint16_t bitmap_address;
+		uint16_t inode_table_address;
+		uint16_t content_address;
+	};
+	#pragma pack(pop)
+
 public:
 	MyFs(BlockDeviceSimulator *blkdevsim_);
 
 	typedef std::vector<File> dir_list;
-
+	using buffer_data_type = std::array<char, SECTOR_SIZE>;
 	/**
 	 * format method
 	 * This function discards the current content in the blockdevice and
@@ -94,6 +87,8 @@ public:
 	 */
 	dir_list list_dir(const std::string& path_str);
 
+	buffer_data_type get_sector_data(uint32_t addr);
+
 	void fill_file_with_null();
 	void insert_fs_headers();
 	void insert_root_folder();
@@ -101,8 +96,11 @@ public:
 	bool is_path_exist(const dir_list& dirent, const std::string& file_name);
 	int find_inode_number(const std::string& file_name, const dir_list& dirent);
 	bool is_sector_full(int sector_to_check);
-	void update_file_headers(int total_size, int inode_number, const std::vector<int>& sectors, File& file);	
-	void handle_write_content(int inode_number, File& file, std::string& content);
+
+	void update_file_headers(int total_size, const std::vector<int>& sectors, File& file);	
+	void update_inode_table(const File& file);
+
+	void handle_write_content(File& file, std::string& content);
 	std::vector<int> append_to_last_sector(std::string& content, File& file, uint32_t last_sector_addr, int remaining_space_in_last_sector);
 	std::vector<int> write_to_new_sectors(std::string& content, File& file);
 	std::vector<int> append_content_to_file(std::string& content, File& file);

@@ -12,7 +12,7 @@ public:
 	void write(int addr, const char *data);
 
 	static const int DEVICE_SIZE = 1024 * 1024;
-	static const int SECTOR_SIZE = 1024;
+	static const int SECTOR_SIZE = 512;
 
 private:
 	int fd;
