@@ -101,9 +101,7 @@ public:
 	bool is_path_exist(const dir_list& dirent, const std::string& file_name);
 	int find_inode_number(const std::string& file_name, const dir_list& dirent);
 	bool is_sector_full(int sector_to_check);
-	void update_file_headers(int total_size, int inode_number, const std::vector<int>& sectors, File& file);
-	std::vector<int> write_to_free_sectors(const std::string& content, const File* file);
-	
+	void update_file_headers(int total_size, int inode_number, const std::vector<int>& sectors, File& file);	
 	void handle_write_content(int inode_number, File& file, std::string& content);
 	std::vector<int> append_to_last_sector(std::string& content, File& file, uint32_t last_sector_addr, int remaining_space_in_last_sector);
 	std::vector<int> write_to_new_sectors(std::string& content, File& file);

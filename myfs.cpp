@@ -36,7 +36,15 @@ void MyFs::format() {
 
 void MyFs::insert_root_folder()
 {
-	
+	File newFile("/");
+
+	std::fill(std::begin(newFile._entry.data_locations), std::end(newFile._entry.data_locations), -1);
+
+	newFile._entry.inode_number = 0;
+	newFile._entry.number_of_sectors = 0;
+	newFile._entry.is_dir = 1;
+
+	blkdevsim->write(INODE_TABLE_ADDRESS, sizeof(File::_entry), (char *)&newFile);
 }
 
 void MyFs::create_file(const std::string& path_str, bool directory) {
@@ -51,13 +59,12 @@ void MyFs::create_file(const std::string& path_str, bool directory) {
 	File newFile(path_str);
 	std::fill(std::begin(newFile._entry.data_locations), std::end(newFile._entry.data_locations), -1);
 
-	newFile._entry.inode_number = dirent.size() + 1;
+	newFile._entry.inode_number = dirent.size();
+	newFile._entry.number_of_sectors = 0;
+	newFile._entry.is_dir = 0;
 
 	if (!directory)
 	{
-		strncpy((char*)newFile._entry.name, path_str.c_str(), NAME_SIZE - 1);
-		newFile._entry.name[NAME_SIZE] = 0;
-
 		// Find the next free slot in the inode table and insert there the newFile.
 		addr = INODE_TABLE_ADDRESS + (dirent.size()) * sizeof(newFile._entry);
 	}
@@ -65,7 +72,7 @@ void MyFs::create_file(const std::string& path_str, bool directory) {
 	{
 		throw std::runtime_error("not implemented");
 	}
-	blkdevsim->write(addr, sizeof(newFile._entry), (char *)&newFile);
+	blkdevsim->write(addr, sizeof(File::_entry), (char *)&newFile);
 }
 
 
@@ -84,28 +91,6 @@ std::string MyFs::get_content(const std::string& path_str) {
 	}
 
 	return ans;
-}
-
-std::vector<int> MyFs::write_to_free_sectors(const std::string& content, const File* file)
-{
-	const size_t chunkSize = SECTOR_SIZE;
-	std::vector<std::string> chunks;
-	std::vector<int> written_sectors;
-
-    for (size_t i = 0; i < content.length(); i += chunkSize) {
-        // substr handles the end of the string automatically
-        chunks.push_back(content.substr(i, chunkSize));
-    }
-
-	for(size_t i = 0;  i < chunks.size(); i++)
-	{
-		int sectorNumber = find_free_sector();
-		uint32_t addr = CONTENT_ADDRESS + (sectorNumber * SECTOR_SIZE);
-		blkdevsim->write(addr , chunks[i].length(), (char *)chunks[i].c_str());
-		written_sectors.push_back(sectorNumber);
-	}
-
-	return written_sectors;
 }
 
 
@@ -246,7 +231,7 @@ MyFs::dir_list MyFs::list_dir(const std::string& path_str) {
 }
 
 
-void MyFs::fillFileWithNull()
+void MyFs::fill_file_with_null()
 {
 	std::vector<char> buffer(blkdevsim->DEVICE_SIZE, 0);
 
@@ -254,7 +239,7 @@ void MyFs::fillFileWithNull()
 }
 
 
-void MyFs::insertFsHeaders()
+void MyFs::insert_fs_headers()
 {
 	struct myfs_header header;
 	
