@@ -68,30 +68,35 @@ void MyFs::insert_root_folder()
 
 void MyFs::create_file(const std::string& path_str, bool directory) {
 	dir_list dirent = list_dir("/");
+
 	if(is_path_exist(dirent, path_str))
 	{
 		std::cout << "File already exists\n" << std::endl;
 		return;
 	}
 	
+	char buffer[SECTOR_SIZE] = {};
 	uint32_t addr;
-	File newFile(path_str);
-	std::fill(std::begin(newFile._entry.data_locations), std::end(newFile._entry.data_locations), -1);
+	File new_file(path_str);
+	File* new_file_ptr = (File*)buffer;
 
-	newFile._entry.inode_number = dirent.size();
-	newFile._entry.number_of_sectors = 0;
-	newFile._entry.is_dir = 0;
+	std::fill(std::begin(new_file_ptr->_entry.data_locations), std::end(new_file_ptr->_entry.data_locations), -1);
+	new_file_ptr->_entry.inode_number = dirent.size();
+	new_file_ptr->_entry.number_of_sectors = 0;
+	new_file_ptr->_entry.is_dir = 0;
 
 	if (!directory)
 	{
 		// Find the next free slot in the inode table and insert there the newFile.
-		addr = INODE_TABLE_ADDRESS + (dirent.size()) * sizeof(newFile._entry);
+		uint16_t specific_addr = INODE_TABLE_ADDRESS + (dirent.size()) * sizeof(File::_entry);
+		addr = specific_addr - (specific_addr % SECTOR_SIZE);
 	}
 	else
 	{
 		throw std::runtime_error("not implemented");
 	}
-	blkdevsim->write(addr, sizeof(File::_entry), (char *)&newFile);
+
+	blkdevsim->write(addr, buffer);
 }
 
 
@@ -232,18 +237,26 @@ void MyFs::set_content(const std::string& path_str, std::string& content) {
 
 
 MyFs::dir_list MyFs::list_dir(const std::string& path_str) {
-	dir_list ans;
-	int total_bytes = SECTOR_SIZE * TABLE_SECTORS_AMOUNT;
-	ans.resize(total_bytes);
+	uint16_t total_bytes = SECTOR_SIZE * TABLE_SECTORS_AMOUNT;
+	uint16_t addr = INODE_TABLE_ADDRESS;
+	std::vector<char> buffer(total_bytes, 0);
 	
-	blkdevsim->read(INODE_TABLE_ADDRESS, total_bytes, (char*)ans.data());
-	
-	dir_list result;
-	for (size_t i = 0; i < ans.size(); i++)
+	while (addr != CONTENT_ADDRESS)
 	{
-		if (ans[i]._entry.name[0] != 0)
+		blkdevsim->read(addr, buffer.data());
+		addr += SECTOR_SIZE;
+	}
+
+	File* inode_array = reinterpret_cast<File*>(buffer.data());
+
+	dir_list result;
+	uint16_t max_entries = buffer.size() / sizeof(File);
+
+	for (size_t i = 0; i < max_entries; i++)
+	{
+		if (inode_array[i]._entry.name[0] != 0)
 		{
-			result.push_back(ans[i]);
+			result.push_back(inode_array[i]);
 		}
 	}
 	return result;
