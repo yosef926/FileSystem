@@ -33,18 +33,38 @@ void MyFs::format() {
 }
 
 
+void MyFs::insert_fs_headers()
+{
+	char buffer[SECTOR_SIZE] = {};
+	struct myfs_header header;
+	myfs_header* header_ptr = (myfs_header*)buffer;
+
+	header_ptr->version = CURR_VERSION;
+	header_ptr->sector_size = SECTOR_SIZE;
+	header_ptr->bitMap_address = BIT_MAP_ADDRESS;
+	header_ptr->inode_table_address = INODE_TABLE_ADDRESS;
+	header_ptr->content_address = CONTENT_ADDRESS;
+	std::memcpy(header_ptr->magic, MYFS_MAGIC, sizeof(header_ptr->magic));
+
+	blkdevsim->write(0, buffer);
+}
+
+
 void MyFs::insert_root_folder()
 {
-	File newFile("/");
+	char buffer[SECTOR_SIZE] = {};
+	File new_file("/");
+	File* new_file_ptr = (File*)buffer;
 
-	std::fill(std::begin(newFile._entry.data_locations), std::end(newFile._entry.data_locations), -1);
+	std::fill(std::begin(new_file_ptr->_entry.data_locations), std::end(new_file_ptr->_entry.data_locations), -1);
 
-	newFile._entry.inode_number = 0;
-	newFile._entry.number_of_sectors = 0;
-	newFile._entry.is_dir = 1;
+	new_file_ptr->_entry.inode_number = 0;
+	new_file_ptr->_entry.number_of_sectors = 0;
+	new_file_ptr->_entry.is_dir = 1;
 
-	blkdevsim->write(INODE_TABLE_ADDRESS, sizeof(File::_entry), (char *)&newFile);
+	blkdevsim->write(INODE_TABLE_ADDRESS, buffer);
 }
+
 
 void MyFs::create_file(const std::string& path_str, bool directory) {
 	dir_list dirent = list_dir("/");
@@ -240,21 +260,6 @@ void MyFs::fill_file_with_null()
 		blkdevsim->write(addr, buffer.data());
 		addr += SECTOR_SIZE;
 	}
-}
-
-
-void MyFs::insert_fs_headers()
-{
-	struct myfs_header header;
-	
-	strncpy((char*)header.magic, (char*)MYFS_MAGIC, sizeof(header.magic));
-	header.version = CURR_VERSION;
-	header.sector_size = SECTOR_SIZE;
-	header.bitMap_address = BIT_MAP_ADDRESS;
-	header.inode_table_address = INODE_TABLE_ADDRESS;
-	header.content_address = CONTENT_ADDRESS;
-	
-	blkdevsim->write(0, sizeof(header), (const char*)&header);
 }
 
 
