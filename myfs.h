@@ -17,7 +17,8 @@ private:
 	BlockDeviceSimulator *blkdevsim;
 	static constexpr uint8_t CURR_VERSION = 0x03;
 	static constexpr uint32_t SECTOR_SIZE = 512;
-	
+	static constexpr uint8_t INODES_PER_SECTOR = SECTOR_SIZE / sizeof(inode);
+
 	// Calculated Addresses
 	static constexpr uint32_t BIT_MAP_ADDRESS = SECTOR_SIZE;
 	static constexpr uint32_t INODE_TABLE_ADDRESS = SECTOR_SIZE * 2;
@@ -104,6 +105,7 @@ public:
 	int calc_remain_space_in_last_sector(const File& file, uint32_t last_sector_addr);
 	File find_file(const std::string& path_str, const dir_list& dirent);
 	File initialize_file(const std::string& path_str, uint16_t inode_number);
+	std::array<uint16_t, 2> find_available_inode_sector(uint16_t inode_number);
 };
 
 #endif // __MYFS_H__

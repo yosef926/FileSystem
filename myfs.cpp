@@ -33,6 +33,11 @@ void MyFs::format() {
 	insert_fs_headers();
 
 	create_file("/", true);
+
+	for (int i = 0; i < 12; i++)
+	{
+		create_file(std::to_string(i), false);
+	}
 }
 
 
@@ -68,23 +73,44 @@ void MyFs::create_file(const std::string& path_str, bool directory)
 
 	File new_file = initialize_file(path_str, dirent.size());
 
-	uint16_t specific_addr = INODE_TABLE_ADDRESS + (dirent.size()) * sizeof(inode);
-	uint16_t offset = (specific_addr % SECTOR_SIZE);
-	uint16_t sector_addr = specific_addr - offset;
+	std::array<uint16_t, 2> locations = find_available_inode_sector(dirent.size());
 	
 	char buffer[SECTOR_SIZE] = {0};
 
-	blkdevsim->read(sector_addr, buffer);
+	blkdevsim->read(locations[0], buffer);
 
-	std::memcpy(buffer + offset, &new_file._entry, sizeof(inode));
+	std::memcpy(buffer + locations[1], &new_file._entry, sizeof(inode));
 
-	blkdevsim->write(sector_addr, buffer);
+	blkdevsim->write(locations[0], buffer);
 
 	if (directory)
 	{
 		//throw std::runtime_error("not implemented");
 		int x = 1;
 	}
+}
+
+
+std::array<uint16_t, 2> MyFs::find_available_inode_sector(uint16_t inode_number)
+{
+	uint16_t specific_addr = INODE_TABLE_ADDRESS + (inode_number) * sizeof(inode);
+	uint16_t offset = (specific_addr % SECTOR_SIZE);
+	uint16_t sector_addr = specific_addr - offset;
+	std::array<uint16_t, 2> locations = {}; // location[0] = sector, location[1] = offset
+
+	if (inode_number % INODES_PER_SECTOR == 0 && inode_number != 0) // Padding to next sector.
+	{
+		std::cout << "padding" << std::endl;
+		locations[0] = sector_addr + SECTOR_SIZE;
+		locations[1] = 0;
+	}
+	else
+	{
+		std::cout << "normal" << std::endl;
+		locations[0] = sector_addr;
+		locations[1] = offset;
+	}
+	return locations;
 }
 
 
@@ -275,6 +301,7 @@ MyFs::dir_list MyFs::list_dir(const std::string& path_str) {
 	{
 		if (inode_array[i].name[0] != 0)
 		{
+			std::cout << inode_array[i].name << std::endl;
 			File curr_file(inode_array[i]);
 			result.push_back(curr_file);
 		}
