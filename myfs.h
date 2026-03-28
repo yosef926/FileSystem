@@ -25,7 +25,6 @@ private:
 
 	static constexpr uint8_t MYFS_MAGIC[4] = { 'M', 'Y', 'F', 'S' };	
 
-	#pragma pack(push, 1)
 	struct myfs_header {
 		uint8_t magic[sizeof(MYFS_MAGIC)];
 		uint8_t version;
@@ -34,13 +33,12 @@ private:
 		uint16_t inode_table_address;
 		uint16_t content_address;
 	};
-	#pragma pack(pop)
 
 public:
 	MyFs(BlockDeviceSimulator *blkdevsim_);
 
 	typedef std::vector<File> dir_list;
-	using buffer_data_type = std::array<char, SECTOR_SIZE>;
+	using buffer_data_type = std::array<uint8_t, SECTOR_SIZE>;
 	/**
 	 * format method
 	 * This function discards the current content in the blockdevice and
@@ -91,7 +89,6 @@ public:
 
 	void fill_file_with_null();
 	void insert_fs_headers();
-	void insert_root_folder();
 	int find_free_sector();
 	bool is_path_exist(const dir_list& dirent, const std::string& file_name);
 	int find_inode_number(const std::string& file_name, const dir_list& dirent);
@@ -106,6 +103,7 @@ public:
 	std::vector<int> append_content_to_file(std::string& content, File& file);
 	int calc_remain_space_in_last_sector(const File& file, uint32_t last_sector_addr);
 	File find_file(const std::string& path_str, const dir_list& dirent);
+	File initialize_file(const std::string& path_str, uint16_t inode_number);
 };
 
 #endif // __MYFS_H__

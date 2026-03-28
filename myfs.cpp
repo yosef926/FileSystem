@@ -32,7 +32,7 @@ void MyFs::format() {
 	
 	insert_fs_headers();
 
-	insert_root_folder();
+	create_file("/", true);
 }
 
 
@@ -56,26 +56,8 @@ void MyFs::insert_fs_headers()
 }
 
 
-void MyFs::insert_root_folder()
+void MyFs::create_file(const std::string& path_str, bool directory)
 {
-	char buffer[SECTOR_SIZE] = {0};
-
-	File new_file("/");
-
-	new_file._entry.inode_number = 0;
-	new_file._entry.is_dir = 1;
-	new_file._entry.file_size = 0;
-	new_file._entry.number_of_sectors = 0;
-
-	std::fill(std::begin(new_file._entry.data_locations), std::end(new_file._entry.data_locations), -1); // 0xFF
-
-	std::memcpy(buffer, &new_file._entry, sizeof(inode));
-
-	blkdevsim->write(INODE_TABLE_ADDRESS, buffer);
-}
-
-
-void MyFs::create_file(const std::string& path_str, bool directory) {
 	dir_list dirent = list_dir("/");
 
 	if(is_path_exist(dirent, path_str))
@@ -83,28 +65,36 @@ void MyFs::create_file(const std::string& path_str, bool directory) {
 		std::cout << "File already exists\n" << std::endl;
 		return;
 	}
+
+	File new_file = initialize_file(path_str, dirent.size());
+
+	uint16_t specific_addr = INODE_TABLE_ADDRESS + (dirent.size()) * sizeof(inode);
+	uint16_t offset = (specific_addr % SECTOR_SIZE);
+	uint16_t sector_addr = specific_addr - offset;
 	
 	char buffer[SECTOR_SIZE] = {0};
-	uint32_t addr;
+
+	blkdevsim->read(sector_addr, buffer);
+
+	std::memcpy(buffer + offset, &new_file._entry, sizeof(inode));
+
+	blkdevsim->write(sector_addr, buffer);
+
+	if (directory)
+	{
+		//throw std::runtime_error("not implemented");
+		int x = 1;
+	}
+}
+
+
+File MyFs::initialize_file(const std::string& path_str, uint16_t inode_number)
+{
 	File new_file(path_str);
-	inode* entry_ptr = reinterpret_cast<inode*>(buffer);
-
-	std::fill(std::begin(entry_ptr->data_locations), std::end(entry_ptr->data_locations), -1);
-	entry_ptr->inode_number = dirent.size();
-	entry_ptr->number_of_sectors = 0;
-	entry_ptr->is_dir = 0;
-
-	if (!directory)
-	{
-		// Find the next free slot in the inode table and insert there the newFile.
-		uint16_t specific_addr = INODE_TABLE_ADDRESS + (dirent.size()) * sizeof(inode);
-		addr = specific_addr - (specific_addr % SECTOR_SIZE);
-	}
-	else
-	{
-		throw std::runtime_error("not implemented");
-	}
-	blkdevsim->write(addr, buffer);
+	new_file._entry.inode_number = inode_number;
+	std::fill(std::begin(new_file._entry.data_locations), std::end(new_file._entry.data_locations), -1);
+	
+	return new_file;
 }
 
 
@@ -209,7 +199,7 @@ std::vector<int> MyFs::append_to_last_sector(std::string& content, File& file, u
 MyFs::buffer_data_type MyFs::get_sector_data(uint32_t addr)
 {
 	MyFs::buffer_data_type sector_data = {0};
-	blkdevsim->read(addr, sector_data.data());
+	blkdevsim->read(addr, reinterpret_cast<char*>(sector_data.data()));
 	return sector_data;
 }
 
@@ -265,26 +255,31 @@ void MyFs::set_content(const std::string& path_str, std::string& content) {
 MyFs::dir_list MyFs::list_dir(const std::string& path_str) {
 	uint16_t total_bytes = SECTOR_SIZE * TABLE_SECTORS_AMOUNT;
 	uint16_t addr = INODE_TABLE_ADDRESS;
-	std::vector<char> buffer(total_bytes, 0);
-	
-	while (addr != CONTENT_ADDRESS)
+	std::vector<uint8_t> inode_table_buffer(total_bytes, 0);
+	uint16_t offset = 0;
+
+	while (addr < CONTENT_ADDRESS)
 	{
-		blkdevsim->read(addr, buffer.data());
+		MyFs::buffer_data_type curr_sector_buffer = get_sector_data(addr);
+		std::memcpy(inode_table_buffer.data() + offset, curr_sector_buffer.data(), SECTOR_SIZE);
+		offset += SECTOR_SIZE;
 		addr += SECTOR_SIZE;
 	}
 
-	File* inode_array = reinterpret_cast<File*>(buffer.data());
+	inode* inode_array = reinterpret_cast<inode*>(inode_table_buffer.data());
 
+	uint16_t max_inodes = total_bytes / sizeof(inode);
 	dir_list result;
-	uint16_t max_entries = buffer.size() / sizeof(File);
 
-	for (size_t i = 0; i < max_entries; i++)
+	for (uint16_t i = 0; i < max_inodes; i++)
 	{
-		if (inode_array[i]._entry.name[0] != 0)
+		if (inode_array[i].name[0] != 0)
 		{
-			result.push_back(inode_array[i]);
+			File curr_file(inode_array[i]);
+			result.push_back(curr_file);
 		}
 	}
+
 	return result;
 }
 

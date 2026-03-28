@@ -16,6 +16,11 @@ File::File(std::string name)
     _entry.name[NAME_SIZE - 1] = '\0';
 }
 
+File::File(inode file_inode)
+{
+    _entry = file_inode;
+}
+
 std::ostream& operator<< (std::ostream& stream, const File& file)
 {
     stream << "name: " << file._entry.name << "\nfile_size: " << file._entry.file_size

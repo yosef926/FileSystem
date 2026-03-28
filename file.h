@@ -9,7 +9,6 @@
 #define NAME_SIZE 12
 #define MAX_SECTORS_FOR_A_FILE 3 // Enough for roughly a file of 100 words.
 
-#pragma pack(push, 1)
 struct inode {
     char name[NAME_SIZE];
     uint16_t inode_number;
@@ -18,12 +17,12 @@ struct inode {
     uint8_t is_dir;
     uint32_t data_locations[MAX_SECTORS_FOR_A_FILE];
 };
-#pragma pack(pop)
 
 class File {
 public:
     File() = default;
     File(std::string name);
+    File(inode file_inode);
     friend std::ostream& operator<< (std::ostream& stream, const File& file);
 
     inode _entry;
