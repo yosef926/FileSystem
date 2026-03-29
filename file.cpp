@@ -23,7 +23,7 @@ File::File(inode file_inode)
 
 std::ostream& operator<< (std::ostream& stream, const File& file)
 {
-    stream << "name: " << file._entry.name << "\nfile_size: " << file._entry.file_size
+    stream << "name: " << file._entry.name << "\nfile_size: " << file._entry.file_size << "\ninode_number: " << file._entry.inode_number
     << "\nnumber_of_sectors: " << file._entry.number_of_sectors << "\nis_dir: " << file._entry.is_dir
     << "\ndata_location: [";
     

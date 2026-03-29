@@ -142,7 +142,7 @@ std::string MyFs::get_content(const std::string& path_str) {
 }
 
 
-std::vector<int> MyFs::write_to_new_sectors(std::string& content, File& file)
+std::vector<int> MyFs::write_to_new_sectors(std::string& content)
 {
 	std::string curr_sector_content;
 	std::vector<int> written_sectors;
@@ -164,7 +164,7 @@ std::vector<int> MyFs::write_to_new_sectors(std::string& content, File& file)
 		written_sectors.push_back(free_sector_number);
 
 		uint32_t addr = CONTENT_ADDRESS + (free_sector_number * SECTOR_SIZE);
-
+		
 		blkdevsim->write(addr, curr_sector_content.c_str());
 	}
 	return written_sectors;
@@ -184,7 +184,7 @@ std::vector<int> MyFs::append_content_to_file(std::string& content, File& file)
 	}
 	else
 	{
-		return write_to_new_sectors(content, file);
+		return write_to_new_sectors(content);
 	}
 }
 
@@ -210,7 +210,7 @@ std::vector<int> MyFs::append_to_last_sector(std::string& content, File& file, u
 	blkdevsim->write(addr, full_data_sector.c_str());
 		
 	content.erase(0, remaining_space_in_last_sector);
-	return write_to_new_sectors(content, file);
+	return write_to_new_sectors(content);
 }
 
 MyFs::buffer_data_type MyFs::get_sector_data(uint32_t addr)
@@ -237,19 +237,17 @@ int MyFs::calc_remain_space_in_last_sector(const File& file, uint32_t last_secto
 
 void MyFs::handle_write_content(File& file, std::string& content)
 {
-	int total_size = (content.size()) + file._entry.file_size;
 	std::vector<int> written_sectors;
-
 
 	if (file._entry.number_of_sectors == 0)
 	{
-		written_sectors = write_to_new_sectors(content, file);
+		written_sectors = write_to_new_sectors(content);
 	}
 	else
 	{
 		written_sectors = append_content_to_file(content, file);
 	}
-	update_file_headers(total_size, written_sectors, file);
+	update_file_headers(content, written_sectors, file);
 }
 
 
@@ -265,6 +263,7 @@ void MyFs::set_content(const std::string& path_str, std::string& content) {
 	content.pop_back();
 
 	File file = find_file(path_str, dirent);
+	std::cout << file._entry.is_dir << std::endl;
 	handle_write_content(file, content);
 }
 
@@ -395,9 +394,10 @@ bool MyFs::is_path_exist(const dir_list& dirent, const std::string& file_name)
 }
 
 
-void MyFs::update_file_headers(int total_size, const std::vector<int>& sectors, File& file) 
+void MyFs::update_file_headers(const std::string& content, const std::vector<int>& sectors, File& file) 
 {
-	file._entry.file_size = total_size;
+	file._entry.file_size += (content.size());
+;
 	
 	size_t start_idx = file._entry.number_of_sectors;
 	for(size_t i = 0; i < sectors.size(); i++) 
@@ -423,14 +423,16 @@ void MyFs::update_inode_table(const File& file)
 	}
 	
 	File* inode_array = reinterpret_cast<File*>(inode_table_buffer.data());
-
 	inode_array[file._entry.inode_number] = file;
+
+	uint32_t buffer_offset = 0;
 	addr = INODE_TABLE_ADDRESS;
 
 	while (addr != CONTENT_ADDRESS)
 	{
-		blkdevsim->write(addr, inode_table_buffer.data());
+		blkdevsim->write(addr, inode_table_buffer.data() + buffer_offset);
 		addr += SECTOR_SIZE;
+		buffer_offset += SECTOR_SIZE;
 	}
 }
 
