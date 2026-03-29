@@ -35,6 +35,11 @@ void MyFs::format() {
 	insert_fs_headers();
 
 	create_file("/", true);
+
+	// for ( int i = 0; i < 10; i++)
+	// {
+	// 	create_file(std::to_string(i), false);
+	// }
 }
 
 
@@ -110,7 +115,7 @@ File MyFs::initialize_file(const std::string& path_str, uint16_t inode_number)
 	File new_file(path_str);
 	new_file._entry.inode_number = inode_number;
 	std::fill(std::begin(new_file._entry.data_locations), std::end(new_file._entry.data_locations), -1);
-	
+
 	return new_file;
 }
 
@@ -263,7 +268,6 @@ void MyFs::set_content(const std::string& path_str, std::string& content) {
 	content.pop_back();
 
 	File file = find_file(path_str, dirent);
-	std::cout << file._entry.is_dir << std::endl;
 	handle_write_content(file, content);
 }
 
@@ -398,7 +402,6 @@ void MyFs::update_file_headers(const std::string& content, const std::vector<int
 {
 	file._entry.file_size += (content.size());
 ;
-	
 	size_t start_idx = file._entry.number_of_sectors;
 	for(size_t i = 0; i < sectors.size(); i++) 
 	{
@@ -406,34 +409,21 @@ void MyFs::update_file_headers(const std::string& content, const std::vector<int
 	}
 
 	file._entry.number_of_sectors += sectors.size();
-	update_inode_table(file);
+
+	write_new_file_metadata(file);
 }
 
 
-void MyFs::update_inode_table(const File& file)
+void MyFs::write_new_file_metadata(const File& file)
 {
-	uint16_t total_bytes = SECTOR_SIZE * TABLE_SECTORS_AMOUNT;
-	uint16_t addr = INODE_TABLE_ADDRESS;
-	std::vector<char> inode_table_buffer(total_bytes, 0);
+	uint16_t sector_addr = INODE_TABLE_ADDRESS + (file._entry.inode_number / INODES_PER_SECTOR);
+	uint16_t offset = sizeof(inode) * file._entry.inode_number;
 
-	while (addr != CONTENT_ADDRESS)
-	{
-		blkdevsim->read(addr, inode_table_buffer.data());
-		addr += SECTOR_SIZE;
-	}
-	
-	File* inode_array = reinterpret_cast<File*>(inode_table_buffer.data());
-	inode_array[file._entry.inode_number] = file;
+	MyFs::buffer_data_type curr_sector_buffer = get_sector_data(sector_addr);
 
-	uint32_t buffer_offset = 0;
-	addr = INODE_TABLE_ADDRESS;
+	std::memcpy(curr_sector_buffer.data() + offset, &file._entry, sizeof(inode));
 
-	while (addr != CONTENT_ADDRESS)
-	{
-		blkdevsim->write(addr, inode_table_buffer.data() + buffer_offset);
-		addr += SECTOR_SIZE;
-		buffer_offset += SECTOR_SIZE;
-	}
+	blkdevsim->write(sector_addr, reinterpret_cast<char*>(curr_sector_buffer.data()));
 }
 
 

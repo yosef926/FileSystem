@@ -7,9 +7,7 @@
 #include "blkdev.h"
 #include "file.h"
 
-//I put 46, becuase total sectors in fs is 2048, so 46+2 sectors(bitmap and headers) is exactly 48, which leave exactly 2000 sectors ot the data part.
-#define TABLE_SECTORS_AMOUNT 46
-#define SECTORES_OF_DATA 2000
+
 
 class MyFs {
 private:
@@ -17,6 +15,9 @@ private:
 	BlockDeviceSimulator *blkdevsim;
 	static constexpr uint16_t CURR_VERSION = 3;
 	static constexpr uint16_t SECTOR_SIZE = 512;
+	static constexpr uint32_t AMOUNT_OF_SECTORS = BlockDeviceSimulator::DEVICE_SIZE / SECTOR_SIZE;
+	static constexpr uint32_t SECTORES_OF_DATA = (AMOUNT_OF_SECTORS - 2) * 0.95; // 2 is headers + bitmap sectors
+	static constexpr uint16_t TABLE_SECTORS_AMOUNT = (AMOUNT_OF_SECTORS - 2) * 0.05;
 	static constexpr uint8_t INODES_PER_SECTOR = SECTOR_SIZE / sizeof(inode);
 	static constexpr uint16_t PADDING_BYTES_TABLE = SECTOR_SIZE % (INODES_PER_SECTOR * sizeof(inode)); // Not using right now
 	static constexpr uint16_t MAX_FILES = TABLE_SECTORS_AMOUNT * INODES_PER_SECTOR;
@@ -98,7 +99,7 @@ public:
 	bool is_sector_full(int sector_to_check);
 
 	void update_file_headers(const std::string& content, const std::vector<int>& sectors, File& file);	
-	void update_inode_table(const File& file);
+	void write_new_file_metadata(const File& file);
 
 	void handle_write_content(File& file, std::string& content);
 	std::vector<int> append_to_last_sector(std::string& content, File& file, uint32_t last_sector_addr, int remaining_space_in_last_sector);

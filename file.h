@@ -7,15 +7,21 @@
 #include "blkdev.h"
 
 #define NAME_SIZE 12
-#define MAX_SECTORS_FOR_A_FILE 3 // Enough for roughly a file of 100 words.
+#define MAX_SECTORS_FOR_A_FILE 8 // 4KB file
+#define AMOUNT_OF_RESERVED_ITEMS 12 // this 
 
 struct inode {
-    char name[NAME_SIZE];
-    uint16_t inode_number;
-    uint32_t number_of_sectors; 
-    uint32_t file_size;
-    uint8_t is_dir;
-    uint32_t data_locations[MAX_SECTORS_FOR_A_FILE];
+    uint32_t inode_number;                                // 4
+    uint32_t data_locations[MAX_SECTORS_FOR_A_FILE];      // 32
+
+    char name[NAME_SIZE];                                 // 12
+
+    uint16_t file_size;                                   // 2
+
+    uint8_t number_of_sectors;                            // 1
+    uint8_t is_dir;                                       // 1
+
+    uint8_t reserved[AMOUNT_OF_RESERVED_ITEMS];           // 12
 };
 
 class File {
