@@ -15,9 +15,11 @@ class MyFs {
 private:
 	// Global Constants for the Filesystem
 	BlockDeviceSimulator *blkdevsim;
-	static constexpr uint8_t CURR_VERSION = 0x03;
-	static constexpr uint32_t SECTOR_SIZE = 512;
+	static constexpr uint16_t CURR_VERSION = 3;
+	static constexpr uint16_t SECTOR_SIZE = 512;
 	static constexpr uint8_t INODES_PER_SECTOR = SECTOR_SIZE / sizeof(inode);
+	static constexpr uint16_t PADDING_BYTES_TABLE = SECTOR_SIZE % (INODES_PER_SECTOR * sizeof(inode)); // Not using right now
+	static constexpr uint16_t MAX_FILES = TABLE_SECTORS_AMOUNT * INODES_PER_SECTOR;
 
 	// Calculated Addresses
 	static constexpr uint32_t BIT_MAP_ADDRESS = SECTOR_SIZE;
@@ -28,7 +30,7 @@ private:
 
 	struct myfs_header {
 		uint8_t magic[sizeof(MYFS_MAGIC)];
-		uint8_t version;
+		uint16_t version;
 		uint16_t sector_size;
 		uint16_t bitmap_address;
 		uint16_t inode_table_address;
@@ -106,6 +108,7 @@ public:
 	File find_file(const std::string& path_str, const dir_list& dirent);
 	File initialize_file(const std::string& path_str, uint16_t inode_number);
 	std::array<uint16_t, 2> find_available_inode_sector(uint16_t inode_number);
+	std::vector<inode> map_sector_to_inodes(const std::vector<uint8_t>& buffer);
 };
 
 #endif // __MYFS_H__

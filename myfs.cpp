@@ -16,7 +16,9 @@ MyFs::MyFs(BlockDeviceSimulator *blkdevsim_):blkdevsim(blkdevsim_) {
 	MyFs::buffer_data_type headers_raw_data = get_sector_data(0);
 
 	struct myfs_header* metadata = reinterpret_cast<myfs_header*>(headers_raw_data.data());
-
+	
+	//std::cout << "hello" << metadata->version << std::endl;
+	
 	if (std::memcmp(metadata->magic, MYFS_MAGIC, sizeof(metadata->magic)) != 0 ||
 	    (metadata->version != CURR_VERSION)) {
 		std::cout << "Did not find myfs instance on blkdev" << std::endl;
@@ -33,11 +35,6 @@ void MyFs::format() {
 	insert_fs_headers();
 
 	create_file("/", true);
-
-	for (int i = 0; i < 12; i++)
-	{
-		create_file(std::to_string(i), false);
-	}
 }
 
 
@@ -55,8 +52,6 @@ void MyFs::insert_fs_headers()
 
 	std::memcpy(header_ptr->magic, MYFS_MAGIC, sizeof(MYFS_MAGIC));
 	
-	header_ptr->magic[sizeof(MYFS_MAGIC)] = '\0';
-
 	blkdevsim->write(0, buffer);
 }
 
@@ -65,9 +60,15 @@ void MyFs::create_file(const std::string& path_str, bool directory)
 {
 	dir_list dirent = list_dir("/");
 
-	if(is_path_exist(dirent, path_str))
+	if (is_path_exist(dirent, path_str))
 	{
 		std::cout << "File already exists\n" << std::endl;
+		return;
+	}
+
+	if (dirent.size() >= MAX_FILES)
+	{
+		std::cout << "Failed to create file: Maximum disk capacity reached. Please free space and retry.\n" << std::endl;
 		return;
 	}
 
@@ -93,23 +94,13 @@ void MyFs::create_file(const std::string& path_str, bool directory)
 
 std::array<uint16_t, 2> MyFs::find_available_inode_sector(uint16_t inode_number)
 {
-	uint16_t specific_addr = INODE_TABLE_ADDRESS + (inode_number) * sizeof(inode);
-	uint16_t offset = (specific_addr % SECTOR_SIZE);
-	uint16_t sector_addr = specific_addr - offset;
+	uint16_t sector_addr = INODE_TABLE_ADDRESS + (inode_number / INODES_PER_SECTOR) * SECTOR_SIZE;
+	uint16_t offset = (inode_number % INODES_PER_SECTOR) * sizeof(inode);
+
 	std::array<uint16_t, 2> locations = {}; // location[0] = sector, location[1] = offset
 
-	if (inode_number % INODES_PER_SECTOR == 0 && inode_number != 0) // Padding to next sector.
-	{
-		std::cout << "padding" << std::endl;
-		locations[0] = sector_addr + SECTOR_SIZE;
-		locations[1] = 0;
-	}
-	else
-	{
-		std::cout << "normal" << std::endl;
-		locations[0] = sector_addr;
-		locations[1] = offset;
-	}
+	locations[0] = sector_addr;
+	locations[1] = offset;
 	return locations;
 }
 
@@ -287,27 +278,50 @@ MyFs::dir_list MyFs::list_dir(const std::string& path_str) {
 	while (addr < CONTENT_ADDRESS)
 	{
 		MyFs::buffer_data_type curr_sector_buffer = get_sector_data(addr);
+		if (curr_sector_buffer.at(0) == '\0') break; // End of written table.
+
 		std::memcpy(inode_table_buffer.data() + offset, curr_sector_buffer.data(), SECTOR_SIZE);
+
 		offset += SECTOR_SIZE;
 		addr += SECTOR_SIZE;
 	}
-
-	inode* inode_array = reinterpret_cast<inode*>(inode_table_buffer.data());
-
+	
+	std::vector<inode> inode_vector = map_sector_to_inodes(inode_table_buffer);
+	
 	uint16_t max_inodes = total_bytes / sizeof(inode);
 	dir_list result;
 
 	for (uint16_t i = 0; i < max_inodes; i++)
 	{
-		if (inode_array[i].name[0] != 0)
+		if (inode_vector[i].name[0] != 0)
 		{
-			std::cout << inode_array[i].name << std::endl;
-			File curr_file(inode_array[i]);
+			File curr_file(inode_vector[i]);
 			result.push_back(curr_file);
 		}
 	}
 
 	return result;
+}
+
+
+std::vector<inode> MyFs::map_sector_to_inodes(const std::vector<uint8_t>& buffer)
+{
+    std::vector<inode> all_inodes;
+    uint32_t offset = 0;
+
+    while (offset < buffer.size())
+    {
+        inode* sector_start = reinterpret_cast<inode*>(const_cast<uint8_t*>(&buffer[offset]));
+
+        for (int i = 0; i < INODES_PER_SECTOR; i++)
+        {
+            all_inodes.push_back(sector_start[i]);
+        }
+
+        offset += SECTOR_SIZE;
+    }
+
+    return all_inodes; 
 }
 
 
