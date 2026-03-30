@@ -36,10 +36,10 @@ void MyFs::format() {
 
 	create_file("/", true);
 
-	// for ( int i = 0; i < 10; i++)
-	// {
-	// 	create_file(std::to_string(i), false);
-	// }
+	for (int i = 0; i < 800; i++)
+	{
+	 	create_file(std::to_string(i), false);
+	}
 }
 
 
@@ -281,7 +281,8 @@ MyFs::dir_list MyFs::list_dir(const std::string& path_str) {
 	while (addr < CONTENT_ADDRESS)
 	{
 		MyFs::buffer_data_type curr_sector_buffer = get_sector_data(addr);
-		if (curr_sector_buffer.at(0) == '\0') break; // End of written table.
+		
+		if (curr_sector_buffer.at(NAME_LOCATION) == '\0') break; // End of written table.
 
 		std::memcpy(inode_table_buffer.data() + offset, curr_sector_buffer.data(), SECTOR_SIZE);
 

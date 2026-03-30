@@ -19,12 +19,11 @@ private:
 	static constexpr uint32_t SECTORES_OF_DATA = (AMOUNT_OF_SECTORS - 2) * 0.95; // 2 is headers + bitmap sectors
 	static constexpr uint16_t TABLE_SECTORS_AMOUNT = (AMOUNT_OF_SECTORS - 2) * 0.05;
 	static constexpr uint8_t INODES_PER_SECTOR = SECTOR_SIZE / sizeof(inode);
-	static constexpr uint16_t PADDING_BYTES_TABLE = SECTOR_SIZE % (INODES_PER_SECTOR * sizeof(inode)); // Not using right now
 	static constexpr uint16_t MAX_FILES = TABLE_SECTORS_AMOUNT * INODES_PER_SECTOR;
 
 	// Calculated Addresses
 	static constexpr uint32_t BIT_MAP_ADDRESS = SECTOR_SIZE;
-	static constexpr uint32_t INODE_TABLE_ADDRESS = SECTOR_SIZE * 2;
+	static constexpr uint32_t INODE_TABLE_ADDRESS = BIT_MAP_ADDRESS + SECTOR_SIZE;
 	static constexpr uint32_t CONTENT_ADDRESS = INODE_TABLE_ADDRESS + TABLE_SECTORS_AMOUNT * SECTOR_SIZE;
 
 	static constexpr uint8_t MYFS_MAGIC[4] = { 'M', 'Y', 'F', 'S' };	
