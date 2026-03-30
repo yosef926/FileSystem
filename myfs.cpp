@@ -143,7 +143,7 @@ std::string MyFs::get_content(const std::string& path_str) {
 }
 
 
-std::vector<int> MyFs::write_to_new_sectors(std::string& content)
+std::vector<int> MyFs::write_to_new_sectors(std::string content)
 {
 	std::string curr_sector_content;
 	std::vector<int> written_sectors;
@@ -175,7 +175,7 @@ std::vector<int> MyFs::write_to_new_sectors(std::string& content)
 }
 
 
-std::vector<int> MyFs::append_content_to_file(std::string& content, File& file)
+std::vector<int> MyFs::append_content_to_file(std::string content, File& file)
 {
 	int last_sector = file._entry.data_locations[file._entry.number_of_sectors - 1];
 	uint32_t last_sector_addr = CONTENT_ADDRESS + (last_sector * SECTOR_SIZE);
@@ -403,7 +403,6 @@ void MyFs::update_file_headers(const std::string& content, const std::vector<int
 	}
 
 	file._entry.number_of_sectors += sectors.size();
-
 	write_new_file_metadata(file);
 }
 

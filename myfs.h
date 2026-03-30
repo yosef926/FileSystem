@@ -102,8 +102,8 @@ public:
 
 	void handle_write_content(File& file, std::string& content);
 	std::vector<int> append_to_last_sector(std::string& content, File& file, uint32_t last_sector_addr, int remaining_space_in_last_sector);
-	std::vector<int> write_to_new_sectors(std::string& content);
-	std::vector<int> append_content_to_file(std::string& content, File& file);
+	std::vector<int> write_to_new_sectors(std::string content);
+	std::vector<int> append_content_to_file(std::string content, File& file);
 	int calc_remain_space_in_last_sector(const File& file, uint32_t last_sector_addr);
 	File find_file(const std::string& path_str, const dir_list& dirent);
 	File initialize_file(const std::string& path_str, uint16_t inode_number);
