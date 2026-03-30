@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <iomanip>
+#include <algorithm>
 
 const std::string FS_NAME = "myfs";
 
@@ -62,6 +63,7 @@ static void recursive_print(MyFs &myfs, std::string path, std::string prefix="")
 		}
 	}
 }
+
 
 int main(int argc, char **argv) {
 
