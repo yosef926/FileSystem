@@ -1,5 +1,6 @@
 #include <string.h>
 #include <iostream>
+#include <iomanip>
 #include <math.h>
 #include <sstream>
 #include <stdint.h>
@@ -35,11 +36,6 @@ void MyFs::format() {
 	insert_fs_headers();
 
 	create_file("/", true);
-
-	for (int i = 0; i < 800; i++)
-	{
-	 	create_file(std::to_string(i), false);
-	}
 }
 
 
@@ -169,8 +165,11 @@ std::vector<int> MyFs::write_to_new_sectors(std::string& content)
 		written_sectors.push_back(free_sector_number);
 
 		uint32_t addr = CONTENT_ADDRESS + (free_sector_number * SECTOR_SIZE);
-		
-		blkdevsim->write(addr, curr_sector_content.c_str());
+		MyFs::buffer_data_type sector_vector = get_sector_data(addr);
+
+		std::copy(curr_sector_content.begin(), curr_sector_content.begin() + curr_sector_content.size(), sector_vector.begin());
+
+		blkdevsim->write(addr, reinterpret_cast<char*>(sector_vector.data()));
 	}
 	return written_sectors;
 }
@@ -183,7 +182,7 @@ std::vector<int> MyFs::append_content_to_file(std::string& content, File& file)
 
 	int remaining_space_in_last_sector = calc_remain_space_in_last_sector(file, last_sector_addr);
 
-	if (remaining_space_in_last_sector >= 0)
+	if (remaining_space_in_last_sector > 0)
 	{
 		return append_to_last_sector(content, file, last_sector_addr, remaining_space_in_last_sector);
 	}
@@ -196,27 +195,23 @@ std::vector<int> MyFs::append_content_to_file(std::string& content, File& file)
 
 std::vector<int> MyFs::append_to_last_sector(std::string& content, File& file, uint32_t last_sector_addr, int remaining_space_in_last_sector)
 {
-	std::string full_data_sector;
-	uint32_t addr = last_sector_addr;
-	MyFs::buffer_data_type sector_data = get_sector_data(addr);
-	std::string sector_data_str(sector_data.begin(), sector_data.end());
+	MyFs::buffer_data_type sector_data = get_sector_data(last_sector_addr);
+	uint32_t offset = SECTOR_SIZE - remaining_space_in_last_sector;
 
-	if (content.size() <= static_cast<std::size_t>(remaining_space_in_last_sector))
+	size_t bytes_to_copy = std::min<size_t>(content.size(), remaining_space_in_last_sector);
+
+	std::copy(content.begin(), content.begin() + bytes_to_copy, sector_data.begin() + offset);
+	
+	blkdevsim->write(last_sector_addr, reinterpret_cast<char*>(sector_data.data()));
+
+	if (content.size() > static_cast<size_t>(remaining_space_in_last_sector))
 	{
-		full_data_sector = sector_data_str + content;
-		blkdevsim->write(addr, full_data_sector.c_str());
-		return {};
+        std::string leftovers = content.substr(bytes_to_copy); 
+        return write_to_new_sectors(leftovers);
 	}
-	else
-	{
-		std::string sub_content = content.substr(0, remaining_space_in_last_sector);
-		full_data_sector = sector_data_str + sub_content;
-	}
-	blkdevsim->write(addr, full_data_sector.c_str());
-		
-	content.erase(0, remaining_space_in_last_sector);
-	return write_to_new_sectors(content);
+	return {};
 }
+
 
 MyFs::buffer_data_type MyFs::get_sector_data(uint32_t addr)
 {
@@ -243,7 +238,6 @@ int MyFs::calc_remain_space_in_last_sector(const File& file, uint32_t last_secto
 void MyFs::handle_write_content(File& file, std::string& content)
 {
 	std::vector<int> written_sectors;
-
 	if (file._entry.number_of_sectors == 0)
 	{
 		written_sectors = write_to_new_sectors(content);
@@ -264,8 +258,7 @@ void MyFs::set_content(const std::string& path_str, std::string& content) {
 		throw std::runtime_error("File not found: " + path_str);
 	}
 
-	// Remove '\n'
-	content.pop_back();
+	content.push_back('\0');
 
 	File file = find_file(path_str, dirent);
 	handle_write_content(file, content);
