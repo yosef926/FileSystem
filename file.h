@@ -11,7 +11,14 @@
 #define AMOUNT_OF_RESERVED_ITEMS 12 // this 
 #define NAME_LOCATION 36 // Relative to inode struct
 
-struct inode {
+struct DirEntry
+{
+    char name[NAME_SIZE];
+    uint32_t inode_number;
+};
+
+struct inode
+{
     uint32_t inode_number;                                // 4
     uint32_t data_locations[MAX_SECTORS_FOR_A_FILE];      // 32
 

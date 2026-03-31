@@ -109,6 +109,11 @@ public:
 	File initialize_file(const std::string& path_str, uint16_t inode_number);
 	std::array<uint16_t, 2> find_available_inode_sector(uint16_t inode_number);
 	std::vector<inode> map_sector_to_inodes(const std::vector<uint8_t>& buffer);
+	DirEntry create_dir_entry(const std::string& file_name, uint32_t& inode_number);
+	void add_entry_to_parent_dir(const DirEntry& entry, inode& parent_dir);
+	bool does_dir_last_sector_full(const inode& parent_dir);
+	bool technical_tests(const dir_list& dirent, const std::string& path_str);
+	void write_file_to_disk(const File& file, const dir_list& dirent);
 };
 
 #endif // __MYFS_H__
