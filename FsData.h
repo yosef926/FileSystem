@@ -1,20 +1,18 @@
-#ifndef __FILE_H__
-#define __FILE_H__
+#ifndef FSDATA_H
+#define FSDATA_H
 
-#include <memory>
-#include <vector>
 #include <stdint.h>
-#include "blkdev.h"
+#include <cstddef>
 
 #define NAME_SIZE 12
 #define MAX_SECTORS_FOR_A_FILE 8 // 4KB file
 #define AMOUNT_OF_RESERVED_ITEMS 12 // this 
-#define NAME_LOCATION 36 // Relative to inode struct
+#define INODE_NAME_OFFSET offsetof(struct inode, name) // Relative to inode struct
 
 struct DirEntry
 {
     char name[NAME_SIZE];
-    uint32_t inode_number;
+    uint32_t inode_number;ge
 };
 
 struct inode
@@ -32,13 +30,4 @@ struct inode
     uint8_t reserved[AMOUNT_OF_RESERVED_ITEMS];           // 12
 };
 
-class File {
-public:
-    File() = default;
-    File(std::string name);
-    File(inode file_inode);
-    friend std::ostream& operator<< (std::ostream& stream, const File& file);
-
-    inode _entry;
-};
-#endif // __MYFS_H__
+#endif // FSDATA_H

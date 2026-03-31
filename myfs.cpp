@@ -10,7 +10,7 @@
 #include <array>
 
 #include "myfs.h"
-#include "file.h"
+#include "FsData.h"
 
 
 MyFs::MyFs(BlockDeviceSimulator *blkdevsim_):blkdevsim(blkdevsim_) {
@@ -57,7 +57,7 @@ void MyFs::insert_fs_headers()
 }
 
 
-bool MyFs::technical_tests(const dir_list& dirent, const std::string& path_str)
+bool MyFs::technical_tests(const all_files_list& dirent, const std::string& path_str)
 {
 	if (dirent.size() >= MAX_FILES)
 	{
@@ -75,7 +75,7 @@ bool MyFs::technical_tests(const dir_list& dirent, const std::string& path_str)
 }
 
 
-void MyFs::write_file_to_disk(const File& file, const dir_list& dirent)
+void MyFs::write_file_to_disk(const File& file, const all_files_list& dirent)
 {
 	std::array<uint16_t, 2> locations = find_available_inode_sector(dirent.size());  // location[0] = sector, location[1] = offset
 	
@@ -121,14 +121,14 @@ std::string MyFs::extract_parent_dir_name(const std::string& path_str)
 void MyFs::create_file(const std::string& path_str, bool directory)
 {
 	std::string parent_dir_name = extract_parent_dir_name(path_str);
-	dir_list dirent = list_dir(parent_dir_name);
+	all_files_list dirent = list_all_files(parent_dir_name);
 
 	if (!technical_tests(dirent, path_str)) return;
 
 	File new_file = initialize_file(path_str, dirent.size());
 
 	write_file_to_disk(new_file, dirent);
-	dirent = list_dir(parent_dir_name);
+	dirent = list_all_files(parent_dir_name);
 
 	if (!directory)
 	{
@@ -137,7 +137,7 @@ void MyFs::create_file(const std::string& path_str, bool directory)
 }
 
 
-void MyFs::handle_adding_entry_to_dir(const dir_list& dirent, const File& file)
+void MyFs::handle_adding_entry_to_dir(const all_files_list& dirent, const File& file)
 {
 	// Should find real parent_dir_name
 	std::string parent_dir_name = "/";
@@ -265,7 +265,7 @@ File MyFs::initialize_file(const std::string& path_str, uint16_t inode_number)
 }
 
 
-File MyFs::find_file(const std::string& path_str, const dir_list& dirent)
+File MyFs::find_file(const std::string& path_str, const all_files_list& dirent)
 {
 	for (const File& file : dirent)
 	{
@@ -275,7 +275,7 @@ File MyFs::find_file(const std::string& path_str, const dir_list& dirent)
 }
 
 std::string MyFs::get_content(const std::string& path_str) {
-	dir_list dirent = list_dir("/");
+	all_files_list dirent = list_all_files("/");
 	File file = find_file(path_str, dirent);
 
 	std::string ans = "";
@@ -400,7 +400,7 @@ void MyFs::handle_write_content(File& file, std::string& content)
 
 
 void MyFs::set_content(const std::string& path_str, std::string& content) {
-	dir_list dirent = list_dir("/");
+	all_files_list dirent = list_all_files("/");
 
 	if (!is_path_exist(dirent, path_str))
 	{
@@ -414,10 +414,10 @@ void MyFs::set_content(const std::string& path_str, std::string& content) {
 }
 
 
-MyFs::dir_list MyFs::list_dir(const std::string& path_str) {
+MyFs::all_files_list MyFs::list_all_inodes(const std::string& path_str) { 
 	uint16_t total_bytes = SECTOR_SIZE * TABLE_SECTORS_AMOUNT;
 	uint16_t addr = INODE_TABLE_ADDRESS;
-	std::vector<uint8_t> inode_table_buffer(total_bytes, 0);
+	std::vector<uint8_t> buffer(total_bytes, 0);
 	uint16_t offset = 0;
 
 	while (addr < CONTENT_ADDRESS)
@@ -433,20 +433,8 @@ MyFs::dir_list MyFs::list_dir(const std::string& path_str) {
 	}
 	
 	std::vector<inode> inode_vector = map_sector_to_inodes(inode_table_buffer);
-	
-	uint16_t max_inodes = total_bytes / sizeof(inode);
-	dir_list result;
 
-	for (uint16_t i = 0; i < max_inodes; i++)
-	{
-		if (inode_vector[i].name[0] != 0)
-		{
-			File curr_file(inode_vector[i]);
-			result.push_back(curr_file);
-		}
-	}
-
-	return result;
+	return inode_vector;
 }
 
 
@@ -484,7 +472,7 @@ void MyFs::fill_file_with_null()
 }
 
 
-int MyFs::find_inode_number(const std::string& file_name, const dir_list& dirent)
+int MyFs::find_inode_number(const std::string& file_name, const all_files_list& dirent)
 {
 	int inode_number = 0;
 
@@ -528,7 +516,7 @@ int MyFs::find_free_sector()
 }
 
 
-bool MyFs::is_path_exist(const dir_list& dirent, const std::string& file_name)
+bool MyFs::is_path_exist(const all_files_list& dirent, const std::string& file_name)
 {
 	for (const File& file : dirent)
 	{

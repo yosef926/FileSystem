@@ -5,8 +5,7 @@
 #include <vector>
 #include <stdint.h>
 #include "blkdev.h"
-#include "file.h"
-
+#include "FsData.h"
 
 
 class MyFs {
@@ -40,7 +39,8 @@ private:
 public:
 	MyFs(BlockDeviceSimulator *blkdevsim_);
 
-	typedef std::vector<File> dir_list;
+	typedef std::vector<inode> all_files_list;
+	typedef std::vector<DirEntry> dir_entries_list;
 	using buffer_data_type = std::array<uint8_t, SECTOR_SIZE>;
 	/**
 	 * format method
@@ -86,15 +86,16 @@ public:
 	 * @return a vector of file_entry structures, one for each file in
 	 *	the directory.
 	 */
-	dir_list list_dir(const std::string& path_str);
+	all_files_list list_all_files(const std::string& path_str);
+	dir_entries_list list_dr_entries(const std::string& path_str);
 
 	buffer_data_type get_sector_data(uint32_t addr);
 
 	void fill_file_with_null();
 	void insert_fs_headers();
 	int find_free_sector();
-	bool is_path_exist(const dir_list& dirent, const std::string& file_name);
-	int find_inode_number(const std::string& file_name, const dir_list& dirent);
+	bool is_path_exist(const all_files_list& dirent, const std::string& file_name);
+	int find_inode_number(const std::string& file_name, const all_files_list& dirent);
 	bool is_sector_full(int sector_to_check);
 
 	void update_file_headers(const std::string& content, const std::vector<int>& sectors, File& file);	
@@ -105,17 +106,17 @@ public:
 	std::vector<int> write_to_new_sectors(std::string content);
 	std::vector<int> append_content_to_file(std::string content, File& file);
 	int calc_remain_space_in_last_sector(const File& file, uint32_t last_sector_addr);
-	File find_file(const std::string& path_str, const dir_list& dirent);
+	File find_file(const std::string& path_str, const all_files_list& dirent);
 	File initialize_file(const std::string& path_str, uint16_t inode_number);
 	std::array<uint16_t, 2> find_available_inode_sector(uint16_t inode_number);
 	std::vector<inode> map_sector_to_inodes(const std::vector<uint8_t>& buffer);
-	void write_file_to_disk(const File& file, const dir_list& dirent);
-	bool technical_tests(const dir_list& dirent, const std::string& path_str);
+	void write_file_to_disk(const File& file, const all_files_list& dirent);
+	bool technical_tests(const all_files_list& dirent, const std::string& path_str);
 	void update_inode_table(const inode& partent_inode);
 	std::string extract_parent_dir_name(const std::string& path_str);
 
 	// Folders - related
-	void handle_adding_entry_to_dir(const dir_list& dirent, const File& file);
+	void handle_adding_entry_to_dir(const all_files_list& dirent, const File& file);
 	DirEntry create_dir_entry(const std::string& file_name, const uint32_t& inode_number);
 	int update_parent_inode_metadata(const DirEntry& entry, inode& parent_inode);
 	bool does_dir_last_sector_full(const inode& parent_dir);

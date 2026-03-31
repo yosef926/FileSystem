@@ -40,7 +40,7 @@ std::vector<std::string> split_cmd(std::string cmd) {
 }
 
 static void recursive_print(MyFs &myfs, std::string path, std::string prefix="") {
-	MyFs::dir_list dlist = myfs.list_dir(path);
+	MyFs::all_files_list dlist = myfs.list_all_files(path);
 	for (size_t i=0; i < dlist.size(); i++) {
 		File& curr_entry = dlist[i];
 
@@ -90,11 +90,11 @@ int main(int argc, char **argv) {
 			
 			std::vector<std::string> cmd = split_cmd(cmdline);
 			if (cmd[0] == LIST_CMD) {
-				MyFs::dir_list dlist;
+				MyFs::all_files_list dlist;
 				if (cmd.size() == 1)
-					dlist = myfs.list_dir("/");
+					dlist = myfs.list_all_files("/");
 				else if (cmd.size() == 2)
-					dlist = myfs.list_dir(cmd[1]);
+					dlist = myfs.list_all_files(cmd[1]);
 				else
 					std::cout << LIST_CMD << ": one or zero arguments requested" << std::endl;
 
