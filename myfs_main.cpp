@@ -40,9 +40,9 @@ std::vector<std::string> split_cmd(std::string cmd) {
 }
 
 static void recursive_print(MyFs &myfs, std::string path, std::string prefix="") {
-	MyFs::all_files_list dlist = myfs.list_all_files(path);
+	MyFs::inode_list dlist = myfs.list_all_inodes(path);
 	for (size_t i=0; i < dlist.size(); i++) {
-		File& curr_entry = dlist[i];
+		inode& curr_inode = dlist[i];
 
 		std::string entry_prefix = prefix;
 		if (i == dlist.size()-1)
@@ -50,16 +50,16 @@ static void recursive_print(MyFs &myfs, std::string path, std::string prefix="")
 		else
 			entry_prefix += "├── ";
 
-		std::cout << entry_prefix << curr_entry._entry.name << std::endl;
+		std::cout << entry_prefix << curr_inode.name << std::endl;
 
-		if (curr_entry._entry.is_dir) {
+		if (curr_inode.is_dir) {
 			std::string dir_prefix = prefix;
 
 			if (i == dlist.size()-1)
 				dir_prefix += "    ";
 			else
 				dir_prefix += "│   ";
-			recursive_print(myfs, path + "/" + (char*)curr_entry._entry.name, dir_prefix);
+			recursive_print(myfs, path + "/" + (char*)curr_inode.name, dir_prefix);
 		}
 	}
 }
@@ -90,19 +90,19 @@ int main(int argc, char **argv) {
 			
 			std::vector<std::string> cmd = split_cmd(cmdline);
 			if (cmd[0] == LIST_CMD) {
-				MyFs::all_files_list dlist;
+				MyFs::inode_list dlist;
 				if (cmd.size() == 1)
-					dlist = myfs.list_all_files("/");
+					dlist = myfs.list_all_inodes("/");
 				else if (cmd.size() == 2)
-					dlist = myfs.list_all_files(cmd[1]);
+					dlist = myfs.list_all_inodes(cmd[1]);
 				else
 					std::cout << LIST_CMD << ": one or zero arguments requested" << std::endl;
 
 				for (size_t i=0; i < dlist.size(); i++) {
 					std::cout << std::setw(15) << std::left
-						<< (char*)dlist[i]._entry.name << (dlist[i]._entry.is_dir ? "/":"")
+						<< (char*)dlist[i].name << (dlist[i].is_dir ? "/":"")
 						<< std::setw(10) << std::right
-						<< dlist[i]._entry.file_size << std::endl;
+						<< dlist[i].file_size << std::endl;
 				}
 			} else if (cmd[0] == EXIT_CMD) {
 				exit = true;
