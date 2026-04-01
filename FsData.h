@@ -30,7 +30,7 @@ struct DirEntry
 
     uint16_t file_size;                                   // 2
 
-    uint16_t is_dir;                                       // 2
+    uint16_t is_dir;                                      // 2
 
     uint8_t reserved[AMOUNT_OF_RESERVED_ITEMS];           // 12
 };

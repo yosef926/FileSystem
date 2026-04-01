@@ -64,11 +64,13 @@ public:
 	 *	the directory.
 	 */
 	//dir_entry_list list_root_inodes(const std::string& path_str);
-	dir_entry_list list_root_entries();
-	dir_entry_list list_dir_entries(const std::string& path_str);
+	dir_entry_list ls_command(const std::string& path_str);
 
-	dir_entry_list get_entries_under_dir(const inode& inode);
-	inode get_inode(uint32_t& inode_number);
+	dir_entry_list read_dir_entries(const uint32_t& inode_number);
+	inode get_inode(const uint32_t& inode_number);
+	int resolve_path(const std::vector<std::string>& parts);
+
+
 	buffer_data_type get_sector_data(uint32_t addr);
 
 	void fill_file_with_null();
@@ -107,7 +109,6 @@ public:
 	int update_parent_inode_metadata(const DirEntry& entry, inode& parent_inode);
 	bool does_dir_last_sector_full(const inode& parent_dir);
 	int calc_offset_for_dirEntry(DirEntry* dirEntry_array);
-	int resolve_path(const std::vector<std::string>& parts);
 	std::string extract_parent_dir_name(const std::string& path_str);
 };
 

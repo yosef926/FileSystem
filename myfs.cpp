@@ -104,8 +104,6 @@ std::vector<std::string> MyFs::split_path_by_slash(const std::string& path_str)
 			parts.push_back(item);
 		}
 	}
-
-	parts.insert(parts.begin(), "/");
 	return parts;
 }
 
@@ -429,29 +427,18 @@ void MyFs::set_content(const std::string& path_str, std::string& content) {
 }
 
 
-MyFs::dir_entry_list MyFs::list_root_entries()
+MyFs::dir_entry_list MyFs::read_dir_entries(const uint32_t& inode_number)
 {
-	std::string file_name = "/";
-	inode_list buffer;
-
-	blkdevsim->read(INODE_TABLE_ADDRESS, reinterpret_cast<char*>(buffer.data()));
-
-	inode root_inode = buffer.at(0);
-	return get_entries_under_dir(root_inode);
-}
-
-
-MyFs::dir_entry_list MyFs::get_entries_under_dir(const inode& inode)
-{
+	inode dir_inode = get_inode(inode_number);
 	dir_entry_list entries;
 	dir_entry_list curr_sector_entries;
 	uint32_t addr;
 
 	for (int i = 0; i < MAX_SECTORS_FOR_A_FILE; i++)
 	{
-		if (inode.data_locations[i] != std::numeric_limits<uint32_t>::max())
+		if (dir_inode.data_locations[i] != std::numeric_limits<uint32_t>::max())
 		{
-			addr = CONTENT_ADDRESS + SECTOR_SIZE * inode.data_locations[i];
+			addr = CONTENT_ADDRESS + SECTOR_SIZE * dir_inode.data_locations[i];
 			blkdevsim->read(addr, reinterpret_cast<char*>(curr_sector_entries.data()));
 			for (const auto& dir_entry : curr_sector_entries)
 			{
@@ -628,20 +615,31 @@ bool MyFs::is_sector_full(int sector_to_check)
 }
 
 
+inode MyFs::get_inode(const uint32_t& inode_number)
+{
+	inode_list inodes;
+	uint32_t addr = INODE_TABLE_ADDRESS + (inode_number / INODES_PER_SECTOR) * SECTOR_SIZE;
+	
+	blkdevsim->read(addr, reinterpret_cast<char*>(inodes.data()));
+
+	return inodes.at(inode_number % INODES_PER_SECTOR);
+}
+
+
 int MyFs::resolve_path(const std::vector<std::string>& parts)
 {
-	dir_entry_list curr_dirent = list_root_entries();
-	inode curr_inode;
 	bool found = false;
+	inode curr_inode;
+	dir_entry_list root_entries = read_dir_entries(0);
+	dir_entry_list curr_entries = root_entries;
 
 	for (int i = 0; i < parts.size(); i++)
 	{
-		for (int j = 0; j < curr_dirent.size(); j++)
+		for (int j = 0; j < curr_entries.size(); j++)
 		{
-			if (parts.at(i) == std::string(curr_dirent.at(j).name))
+			if (parts.at(i) == std::string(reinterpret_cast<char*>(curr_entries.at(i).name)) && curr_entries.at(i).is_dir)
 			{
-				curr_inode = get_inode(curr_dirent.at(j).inode_number);
-				curr_dirent = get_entries_under_dir(curr_inode);
+				curr_entries = read_dir_entries(curr_entries.at(j).inode_number);
 				found = true; 
 			}
 		}
@@ -654,18 +652,7 @@ int MyFs::resolve_path(const std::vector<std::string>& parts)
 }
 
 
-inode MyFs::get_inode(uint32_t& inode_number)
-{
-	inode_list inodes;
-	uint32_t addr = INODE_TABLE_ADDRESS + (inode_number / INODES_PER_SECTOR) * SECTOR_SIZE;
-	
-	blkdevsim->read(addr, reinterpret_cast<char*>(inodes.data()));
-
-	return inodes.at(inode_number % INODES_PER_SECTOR);
-}
-
-
-MyFs::dir_entry_list MyFs::list_dir_entries(const std::string& path_str)
+MyFs::dir_entry_list MyFs::ls_command(const std::string& path_str)
 {
 	std::vector<std::string> parts = split_path_by_slash(path_str);
 
@@ -673,8 +660,7 @@ MyFs::dir_entry_list MyFs::list_dir_entries(const std::string& path_str)
 	
 	if (parent_dir_inode_number == -1)
 	{
-		throw std::runtime_error("Path is not valid: " + path_str);
+		throw std::runtime_error("Error: path is not valid: " + path_str);
 	}
-	
-	// Code
+	return read_dir_entries(parent_dir_inode_number);
 }
