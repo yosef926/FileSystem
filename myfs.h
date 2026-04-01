@@ -18,7 +18,7 @@ public:
 
 	typedef std::vector<inode> inode_list;
 	typedef std::vector<DirEntry> dir_entry_list;
-	using buffer_data_type = std::array<uint8_t, SECTOR_SIZE>;
+	typedef std::array<uint8_t, SECTOR_SIZE> buffer_data_type;
 	/**
 	 * format method
 	 * This function discards the current content in the blockdevice and
@@ -68,7 +68,7 @@ public:
 	dir_entry_list list_dir_entries(const std::string& path_str);
 
 	dir_entry_list get_entries_under_dir(const inode& inode);
-	inode MyFs::get_inode(uint32_t& inode_number)
+	inode get_inode(uint32_t& inode_number);
 	buffer_data_type get_sector_data(uint32_t addr);
 
 	void fill_file_with_null();
@@ -88,7 +88,7 @@ public:
 	std::array<uint16_t, 2> find_available_inode_sector(uint16_t inode_number);
 	int find_free_sector();
 
-	void handle_write_content(inode& file, std::string& content);
+	void handle_write_content(DirEntry& file, std::string& content);
 	void write_file_to_disk(const inode& file, const inode_list& dirent);
 	void write_entry_to_dir(const DirEntry& entry, int sector_number);
 	void write_new_file_metadata(const inode& file);

@@ -398,10 +398,11 @@ int MyFs::calc_remain_space_in_last_sector(const inode& file, uint32_t last_sect
 }
 
 
-void MyFs::handle_write_content(inode& file, std::string& content)
+void MyFs::handle_write_content(DirEntry& file, std::string& content)
 {
 	std::vector<int> written_sectors;
-	if (file.number_of_sectors == 0)
+
+	if (file.file_size == 0)
 	{
 		written_sectors = write_to_new_sectors(content);
 	}
