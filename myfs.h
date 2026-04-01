@@ -75,7 +75,10 @@ public:
 	std::vector<std::string> split_path_by_slash(const std::string& path);
 	void path_syntax_tests(const std::string& path);
 	int find_free_sector(const uint16_t& addr);
-
+	void pre_create_checks(std::string path);
+	std::string get_parent_path(const std::string& path);
+	std::string get_file_name_from_path(const std::string& path);
+	void does_file_exists(const dir_entry_list& parent_entries, const std::string& path);
 
 	// Files
 	void update_file_headers(const std::string& content, const std::vector<int>& sectors, inode& file);	

@@ -116,22 +116,68 @@ std::string MyFs::extract_parent_dir_name(const std::string& path)
 	return parts[parts.size() - 2];
 }
 
+std::string MyFs::get_parent_path(const std::string& path)
+{
+	if (path.empty()) return "";
+
+    size_t last_slash_idx = path.find_last_of('/');
+
+    if (last_slash_idx == std::string::npos) {
+        return "/"; 
+    }
+    return path.substr(0, last_slash_idx + 1);
+}
+
+
+std::string MyFs::get_file_name_from_path(const std::string& path)
+{
+	size_t last_slash_idx = path.find_last_of('/');
+
+    if (last_slash_idx == std::string::npos) {
+        return path; 
+    }
+    return path.substr(last_slash_idx+1);
+}
+
+
+void MyFs::pre_create_checks(std::string path)
+{
+
+}
+
+
+void MyFs::does_file_exists(const dir_entry_list& parent_entries, const std::string& path)
+{
+	std::string file_name = get_file_name_from_path(path);
+
+	for (const DirEntry& dir_entry : parent_entries)
+	{
+		if (std::memcmp(dir_entry.name, file_name.c_str(), file_name.size()) == 0)
+		{
+			return;
+		}
+	}
+	throw std::runtime_error("Failed to create file: A file with name already exists in this folder\n")
+}
+
 
 void MyFs::create_file(const std::string& path, bool directory)
 {
 	dir_entry_list root_entries = get_dir_entries(0);
 
+	// Check 1
 	if (root_entries.size() >= MAX_FILES)
 	{
 		throw std::runtime_error("Failed to create file: Maximum disk capacity reached. Please free space and retry.\n");
 	}
-	dir_entry_list parent_entries = ls_command(path);
 
+	std::string parent_path = get_parent_path(path);
+	
+	// Check 2 - if ls_command not crash means all files in path are really folders(except last one which is file OR folder)
+	dir_entry_list parent_entries = ls_command(parent_path);
 
-	std::string parent_dir_name = extract_parent_dir_name(path);
-
-	dir_entry_list root_entries = get_dir_entries(0);
-
+	//check 3
+	does_file_exists(parent_entries, path);
 
 	inode new_file = initialize_inode(path, dirent.size(), directory);
 
@@ -139,7 +185,6 @@ void MyFs::create_file(const std::string& path, bool directory)
 	dirent = list_root_inodes(parent_dir_name);
 
 	handle_adding_entry_to_dir(dirent, new_file);
-
 }
 
 
