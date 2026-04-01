@@ -146,7 +146,7 @@ void MyFs::pre_create_checks(std::string path)
 }
 
 
-void MyFs::does_file_exists(const dir_entry_list& parent_entries, const std::string& path)
+std::string MyFs::does_file_exists(const dir_entry_list& parent_entries, const std::string& path)
 {
 	std::string file_name = get_file_name_from_path(path);
 
@@ -154,7 +154,7 @@ void MyFs::does_file_exists(const dir_entry_list& parent_entries, const std::str
 	{
 		if (std::memcmp(dir_entry.name, file_name.c_str(), file_name.size()) == 0)
 		{
-			return;
+			return file_name;
 		}
 	}
 	throw std::runtime_error("Failed to create file: A file with name already exists in this folder\n")
@@ -177,12 +177,12 @@ void MyFs::create_file(const std::string& path, bool directory)
 	dir_entry_list parent_entries = ls_command(parent_path);
 
 	//check 3
-	does_file_exists(parent_entries, path);
+	std::string file_name = does_file_exists(parent_entries, path);
 
-	inode new_file = initialize_inode(path, dirent.size(), directory);
+	DirEntry new_entry = initialize_entry(file_name, directory);
 
-	write_file_to_disk(new_file, dirent);
-	dirent = list_root_inodes(parent_dir_name);
+	write_entry_to_disk(new_file, dirent);
+	write_inode_to_table(inode_number);
 
 	handle_adding_entry_to_dir(dirent, new_file);
 }
@@ -306,17 +306,16 @@ std::array<uint16_t, 2> MyFs::find_available_inode_sector(uint16_t inode_number)
 }
 
 
-inode MyFs::initialize_inode(const std::string& path, uint16_t inode_number, uint8_t is_dir)
+DirEntry MyFs::initialize_entry(const std::string& file_name, uint16_t is_dir)
 {
-	inode new_inode = {0};
+	DirEntry entry = {0};
 
-	std::strncpy(new_inode.name, path.c_str(), sizeof(new_inode.name) - 1);
-	new_inode.name[sizeof(new_inode.name) - 1] = '\0';
-	new_inode.inode_number = inode_number;
-	new_inode.is_dir = is_dir;
-	std::fill(std::begin(new_inode.data_locations), std::end(new_inode.data_locations), -1);
+	std::strncpy(entry.name, file_name.c_str(), sizeof(entry.name) - 1);
+	entry.name[sizeof(entry.name) - 1] = '\0';
+	entry.inode_number = find_free_sector(BITMAP_TABLE_ADDRESS);
+	entry.is_dir = is_dir;
 
-	return new_inode;
+	return entry;
 }
 
 

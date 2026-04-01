@@ -78,7 +78,7 @@ public:
 	void pre_create_checks(std::string path);
 	std::string get_parent_path(const std::string& path);
 	std::string get_file_name_from_path(const std::string& path);
-	void does_file_exists(const dir_entry_list& parent_entries, const std::string& path);
+	std::string does_file_exists(const dir_entry_list& parent_entries, const std::string& path);
 
 	// Files
 	void update_file_headers(const std::string& content, const std::vector<int>& sectors, inode& file);	
@@ -93,7 +93,7 @@ public:
 
 
 	// Inode table
-	inode initialize_inode(const std::string& path, uint16_t inode_number, uint8_t is_dir);
+	DirEntry initialize_entry(const std::string& file_name, uint16_t is_dir);
 	std::vector<inode> map_sector_to_inodes(const std::vector<uint8_t>& buffer);
 	void update_inode_table(const inode& partent_inode);
 	inode get_inode(const uint32_t& inode_number);
