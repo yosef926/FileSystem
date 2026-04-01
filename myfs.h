@@ -27,15 +27,12 @@ public:
 	void format();
 
 	/**
-	 * create_file method
-	 * Creates a new file in the required path.
 	 * @param path_str the file path (e.g. "/newfile")
 	 * @param directory boolean indicating whether this is a file or directory
 	 */
 	void create_file(const std::string& path_str, bool directory);
 
 	/**
-	 * get_content method
 	 * Returns the whole content of the file indicated by path_str param.
 	 * Note: this method assumes path_str refers to a file and not a
 	 * directory.
@@ -45,7 +42,6 @@ public:
 	std::string get_content(const std::string& path_str);
 
 	/**
-	 * set_content method
 	 * Sets the whole content of the file indicated by path_str param.
 	 * Note: this method assumes path_str refers to a file and not a
 	 * directory.
@@ -55,7 +51,6 @@ public:
 	void set_content(const std::string& path_str, std::string& content);
 
 	/**
-	 * list_dir_entries method
 	 * Returns a list of a files in a directory.
 	 * Note: this method assumes path_str refers to a directory and not a
 	 * file.
@@ -66,7 +61,7 @@ public:
 	//dir_entry_list list_root_inodes(const std::string& path_str);
 	dir_entry_list ls_command(const std::string& path_str);
 
-	dir_entry_list read_dir_entries(const uint32_t& inode_number);
+	dir_entry_list get_dir_entries(const uint32_t& inode_number);
 	inode get_inode(const uint32_t& inode_number);
 	int resolve_path(const std::vector<std::string>& parts);
 
@@ -88,7 +83,7 @@ public:
 	inode find_inode(const std::string& path_str, const inode_list& dirent);
 	int find_inode_number(const std::string& file_name, const inode_list& dirent);
 	std::array<uint16_t, 2> find_available_inode_sector(uint16_t inode_number);
-	int find_free_sector();
+	int find_free_sector(const uint16_t& addr);
 
 	void handle_write_content(DirEntry& file, std::string& content);
 	void write_file_to_disk(const inode& file, const inode_list& dirent);
@@ -98,7 +93,7 @@ public:
 
 	inode initialize_inode(const std::string& path_str, uint16_t inode_number, uint8_t is_dir);
 	std::vector<inode> map_sector_to_inodes(const std::vector<uint8_t>& buffer);
-	bool technical_tests(const inode_list& dirent, const std::string& path_str);
+	bool technical_tests(const dir_entry_list& root_entries);
 	void update_inode_table(const inode& partent_inode);
 
 	std::vector<std::string> split_path_by_slash(const std::string& path_str);
