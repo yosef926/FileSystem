@@ -58,21 +58,12 @@ void MyFs::insert_fs_headers()
 }
 
 
-bool MyFs::technical_tests(const dir_entry_list& root_entries)
+void MyFs::path_syntax_tests(const dir_entry_list& root_entries)
 {
-	if (root_entries.size() >= MAX_FILES)
-	{
-		std::cout << "Failed to create file: Maximum disk capacity reached. Please free space and retry.\n" << std::endl;
-		return false;
-	}
-
 	if (resolve_path(parts) == -1)
 	{
-		std::cout << "inode already exists\n" << std::endl;
-		return false;
+		throw std::runtime_error("inode already exists\n");
 	}
-
-	return true;
 }
 
 
@@ -90,10 +81,10 @@ void MyFs::write_file_to_disk(const inode& file, const inode_list& dirent)
 }
 
 
-std::vector<std::string> MyFs::split_path_by_slash(const std::string& path_str)
+std::vector<std::string> MyFs::split_path_by_slash(const std::string& path)
 {
 	std::vector<std::string> parts;
-    std::stringstream ss(path_str);
+    std::stringstream ss(path);
     std::string item;
 
     while (std::getline(ss, item, '/'))
@@ -108,9 +99,9 @@ std::vector<std::string> MyFs::split_path_by_slash(const std::string& path_str)
 }
 
 
-std::string MyFs::extract_parent_dir_name(const std::string& path_str)
+std::string MyFs::extract_parent_dir_name(const std::string& path)
 {
-	std::vector<std::string> parts = split_path_by_slash(path_str);
+	std::vector<std::string> parts = split_path_by_slash(path);
 
 	if (parts.size() == 0)
 	{
@@ -126,23 +117,29 @@ std::string MyFs::extract_parent_dir_name(const std::string& path_str)
 }
 
 
-void MyFs::create_file(const std::string& path_str, bool directory)
+void MyFs::create_file(const std::string& path, bool directory)
 {
-	std::string parent_dir_name = extract_parent_dir_name(path_str);
+	dir_entry_list root_entries = get_dir_entries(0);
+
+	if (root_entries.size() >= MAX_FILES)
+	{
+		throw std::runtime_error("Failed to create file: Maximum disk capacity reached. Please free space and retry.\n");
+	}
+	dir_entry_list parent_entries = ls_command(path);
+
+
+	std::string parent_dir_name = extract_parent_dir_name(path);
 
 	dir_entry_list root_entries = get_dir_entries(0);
 
-	if (!technical_tests(root_entries)) return;
 
-	inode new_file = initialize_inode(path_str, dirent.size(), directory);
+	inode new_file = initialize_inode(path, dirent.size(), directory);
 
 	write_file_to_disk(new_file, dirent);
 	dirent = list_root_inodes(parent_dir_name);
 
-	if (!directory)
-	{
-		handle_adding_entry_to_dir(dirent, new_file);
-	}
+	handle_adding_entry_to_dir(dirent, new_file);
+
 }
 
 
@@ -264,11 +261,11 @@ std::array<uint16_t, 2> MyFs::find_available_inode_sector(uint16_t inode_number)
 }
 
 
-inode MyFs::initialize_inode(const std::string& path_str, uint16_t inode_number, uint8_t is_dir)
+inode MyFs::initialize_inode(const std::string& path, uint16_t inode_number, uint8_t is_dir)
 {
 	inode new_inode = {0};
 
-	std::strncpy(new_inode.name, path_str.c_str(), sizeof(new_inode.name) - 1);
+	std::strncpy(new_inode.name, path.c_str(), sizeof(new_inode.name) - 1);
 	new_inode.name[sizeof(new_inode.name) - 1] = '\0';
 	new_inode.inode_number = inode_number;
 	new_inode.is_dir = is_dir;
@@ -278,18 +275,18 @@ inode MyFs::initialize_inode(const std::string& path_str, uint16_t inode_number,
 }
 
 
-inode MyFs::find_inode(const std::string& path_str, const inode_list& dirent)
+inode MyFs::find_inode(const std::string& path, const inode_list& dirent)
 {
 	for (const inode& file : dirent)
 	{
-		if (std::string(file.name) == path_str) return file;
+		if (std::string(file.name) == path) return file;
 	}
-	throw std::runtime_error("inode not found: " + path_str);
+	throw std::runtime_error("inode not found: " + path);
 }
 
-std::string MyFs::get_content(const std::string& path_str) {
+std::string MyFs::get_content(const std::string& path) {
 	inode_list dirent = list_root_entries();
-	inode file = find_inode(path_str, dirent);
+	inode file = find_inode(path, dirent);
 
 	std::string ans = "";
 	char sector_buffer[SECTOR_SIZE];
@@ -413,22 +410,22 @@ void MyFs::handle_write_content(DirEntry& file, std::string& content)
 }
 
 
-void MyFs::set_content(const std::string& path_str, std::string& content) {
+void MyFs::set_content(const std::string& path, std::string& content) {
 	inode_list dirent = list_root_inodes("/");
 
-	if (!is_path_exist(dirent, path_str))
+	if (!is_path_exist(dirent, path))
 	{
-		throw std::runtime_error("inode not found: " + path_str);
+		throw std::runtime_error("inode not found: " + path);
 	}
 
 	content.push_back('\0');
 
-	inode file = find_inode(path_str, dirent);
+	inode file = find_inode(path, dirent);
 	handle_write_content(file, content);
 }
 
 
-MyFs::dir_entry_list MyFs::read_dir_entries(const uint32_t& inode_number)
+MyFs::dir_entry_list MyFs::get_dir_entries(const uint32_t& inode_number)
 {
 	inode dir_inode = get_inode(inode_number);
 	dir_entry_list entries;
@@ -451,32 +448,6 @@ MyFs::dir_entry_list MyFs::read_dir_entries(const uint32_t& inode_number)
 	}
 	return entries;
 }
-
-
-/*
-MyFs::dir_entry_list MyFs::list_root_inodes(const std::string& path_str) {
-	uint16_t total_bytes = SECTOR_SIZE * TABLE_SECTORS_AMOUNT;
-	uint16_t addr = INODE_TABLE_ADDRESS;
-	std::vector<uint8_t> buffer(total_bytes, 0);
-	uint16_t offset = 0;
-
-	while (addr < CONTENT_ADDRESS)
-	{
-		MyFs::buffer_data_type curr_sector_buffer = get_sector_data(addr);
-		
-		if (curr_sector_buffer.at(INODE_NAME_OFFSET) == '\0') break; // End of written table.
-
-		std::memcpy(buffer.data() + offset, curr_sector_buffer.data(), SECTOR_SIZE);
-
-		offset += SECTOR_SIZE;
-		addr += SECTOR_SIZE;
-	}
-	
-	std::vector<inode> inode_vector = map_sector_to_inodes(buffer);
-
-	return inode_vector;
-}
-*/
 
 
 std::vector<inode> MyFs::map_sector_to_inodes(const std::vector<uint8_t>& buffer)
@@ -557,11 +528,11 @@ int MyFs::find_free_sector(const uint16_t& addr)
 }
 
 
-bool MyFs::is_path_exist(const inode_list& dirent, const std::string& file_name)
+bool MyFs::does_entry_exists(const dir_entry_list& parent_entries, const std::string& file_name)
 {
-	for (const inode& file : dirent)
+	for (const DirEntry& entry : parent_entries)
 	{
-		if (std::string(file.name) == file_name)
+		if (std::string(reinterpret_cast<char*>(entry.name)) == file_name)
 		{
 			return true;
 		}
@@ -651,9 +622,9 @@ int MyFs::resolve_path(const std::vector<std::string>& parts)
 }
 
 
-MyFs::dir_entry_list MyFs::ls_command(const std::string& path_str)
+MyFs::dir_entry_list MyFs::ls_command(const std::string& path)
 {
-	std::vector<std::string> parts = split_path_by_slash(path_str);
+	std::vector<std::string> parts = split_path_by_slash(path);
 
 	int parent_dir_inode_number = resolve_path(parts);
 	
