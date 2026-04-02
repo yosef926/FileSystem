@@ -48,7 +48,8 @@ void MyFs::insert_fs_headers()
 
 	header_ptr->version = CURR_VERSION;
 	header_ptr->sector_size = SECTOR_SIZE;
-	header_ptr->bitmap_address = BIT_MAP_ADDRESS;
+	header_ptr->bitmap_table_address = BITMAP_TABLE_ADDRESS;
+	header_ptr->bitmap_content_address = BITMAP_CONTENT_ADDRESS;
 	header_ptr->inode_table_address = INODE_TABLE_ADDRESS;
 	header_ptr->content_address = CONTENT_ADDRESS;
 
@@ -58,26 +59,23 @@ void MyFs::insert_fs_headers()
 }
 
 
-void MyFs::path_syntax_tests(const dir_entry_list& root_entries)
+uint32_t MyFs::write_new_inode()
 {
-	if (resolve_path(parts) == -1)
-	{
-		throw std::runtime_error("inode already exists\n");
-	}
-}
+	int inode_number = search_free_bit(BITMAP_TABLE_ADDRESS);
+	uint32_t relative_inode_addr = inode_number * sizeof(inode);
 
-
-void MyFs::write_file_to_disk(const inode& file, const inode_list& dirent)
-{
-	std::array<uint16_t, 2> locations = find_available_inode_sector(dirent.size());  // location[0] = sector, location[1] = offset
+	uint32_t sector_addr = INODE_TABLE_ADDRESS + (relative_inode_addr / SECTOR_SIZE) * SECTOR_SIZE;
 	
 	char buffer[SECTOR_SIZE] = {0};
 
-	blkdevsim->read(locations[0], buffer);
+	blkdevsim->read(sector_addr, buffer);
 
-	std::memcpy(buffer + locations[1], &file, sizeof(inode));
+	inode new_inode = { 0 };
 
-	blkdevsim->write(locations[0], buffer);
+	std::memcpy(buffer + (relative_inode_addr % SECTOR_SIZE), &new_inode, sizeof(inode));
+
+	blkdevsim->write(sector_addr, buffer);
+	return inode_number;
 }
 
 
@@ -98,23 +96,6 @@ std::vector<std::string> MyFs::split_path_by_slash(const std::string& path)
 	return parts;
 }
 
-
-std::string MyFs::extract_parent_dir_name(const std::string& path)
-{
-	std::vector<std::string> parts = split_path_by_slash(path);
-
-	if (parts.size() == 0)
-	{
-		throw std::runtime_error("Error: path is not valid");
-	}
-	else if (parts.size() == 1)
-	{
-		return "/";
-	}
-
-	// Safe: the preceding conditional ensures parts.size() > 1 before reaching this block.
-	return parts[parts.size() - 2];
-}
 
 std::string MyFs::get_parent_path(const std::string& path)
 {
@@ -137,12 +118,6 @@ std::string MyFs::get_file_name_from_path(const std::string& path)
         return path; 
     }
     return path.substr(last_slash_idx+1);
-}
-
-
-void MyFs::pre_create_checks(std::string path)
-{
-
 }
 
 
@@ -179,12 +154,13 @@ void MyFs::create_file(const std::string& path, bool directory)
 	//check 3
 	std::string file_name = does_file_exists(parent_entries, path);
 
-	DirEntry new_entry = initialize_entry(file_name, directory);
+	uint32_t inode_number = write_new_inode();
 
-	write_entry_to_disk(new_file, dirent);
-	write_inode_to_table(inode_number);
+	DirEntry entry = initialize_entry(file_name, directory, inode_number);
 
-	handle_adding_entry_to_dir(dirent, new_file);
+	write_new_entry(entry, parent_inode);
+
+	//handle_adding_entry_to_dir(dirent, new_file);
 }
 
 
@@ -201,18 +177,6 @@ void MyFs::handle_adding_entry_to_dir(const inode_list& dirent, const inode& fil
 	int sector_number = update_parent_inode_metadata(entry, parent_inode);
 
 	write_entry_to_dir(entry, sector_number);
-}
-
-
-DirEntry MyFs::create_dir_entry(const std::string& file_name, const uint32_t& inode_number)
-{
-	DirEntry entry = {};
-	entry.inode_number = inode_number;
-	
-	std::strncpy(entry.name, file_name.c_str(), sizeof(entry.name) - 1);
-	entry.name[sizeof(entry.name) - 1] = '\0';
-
-	return entry;
 }
 
 
@@ -306,13 +270,12 @@ std::array<uint16_t, 2> MyFs::find_available_inode_sector(uint16_t inode_number)
 }
 
 
-DirEntry MyFs::initialize_entry(const std::string& file_name, uint16_t is_dir)
+DirEntry MyFs::initialize_entry(const std::string& file_name, uint16_t is_dir, const uint32_t& inode_number)
 {
 	DirEntry entry = {0};
 
-	std::strncpy(entry.name, file_name.c_str(), sizeof(entry.name) - 1);
-	entry.name[sizeof(entry.name) - 1] = '\0';
-	entry.inode_number = find_free_sector(BITMAP_TABLE_ADDRESS);
+	std::memcpy(entry.name, file_name.c_str(), NAME_SIZE);
+	entry.inode_number = inode_number;
 	entry.is_dir = is_dir;
 
 	return entry;
@@ -378,16 +341,18 @@ std::vector<int> MyFs::write_to_new_sectors(std::string content)
 }
 
 
-std::vector<int> MyFs::append_content_to_file(std::string content, inode& file)
+std::vector<int> MyFs::append_content_to_file(std::string content, DirEntry& entry)
 {
-	int last_sector = file.data_locations[file.number_of_sectors - 1];
+	inode file_inode = get_inode(entry.inode_number);
+
+	int last_sector = file_inode.data_locations[(entry.file_size / SECTOR_SIZE) - 1];
 	uint32_t last_sector_addr = CONTENT_ADDRESS + (last_sector * SECTOR_SIZE);
 
-	int remaining_space_in_last_sector = calc_remain_space_in_last_sector(file, last_sector_addr);
+	int remaining_space_in_last_sector = calc_remain_space_in_last_sector(last_sector_addr);
 
 	if (remaining_space_in_last_sector > 0)
 	{
-		return append_to_last_sector(content, file, last_sector_addr, remaining_space_in_last_sector);
+		return append_to_last_sector(content, last_sector_addr, remaining_space_in_last_sector);
 	}
 	else
 	{
@@ -396,7 +361,7 @@ std::vector<int> MyFs::append_content_to_file(std::string content, inode& file)
 }
 
 
-std::vector<int> MyFs::append_to_last_sector(std::string& content, inode& file, uint32_t last_sector_addr, int remaining_space_in_last_sector)
+std::vector<int> MyFs::append_to_last_sector(std::string& content, uint32_t last_sector_addr, int remaining_space_in_last_sector)
 {
 	MyFs::buffer_data_type sector_data = get_sector_data(last_sector_addr);
 	uint32_t offset = SECTOR_SIZE - remaining_space_in_last_sector;
@@ -424,7 +389,7 @@ MyFs::buffer_data_type MyFs::get_sector_data(uint32_t addr)
 }
 
 
-int MyFs::calc_remain_space_in_last_sector(const inode& file, uint32_t last_sector_addr)
+int MyFs::calc_remain_space_in_last_sector(uint32_t last_sector_addr)
 {
 	MyFs::buffer_data_type data = get_sector_data(last_sector_addr);
 
@@ -438,19 +403,19 @@ int MyFs::calc_remain_space_in_last_sector(const inode& file, uint32_t last_sect
 }
 
 
-void MyFs::handle_write_content(DirEntry& file, std::string& content)
+void MyFs::handle_write_content(DirEntry& entry, std::string& content)
 {
 	std::vector<int> written_sectors;
 
-	if (file.file_size == 0)
+	if (entry.file_size == 0)
 	{
 		written_sectors = write_to_new_sectors(content);
 	}
 	else
 	{
-		written_sectors = append_content_to_file(content, file);
+		written_sectors = append_content_to_file(content, entry);
 	}
-	update_file_headers(content, written_sectors, file);
+	update_file_headers(content, written_sectors, entry);
 }
 
 
@@ -528,31 +493,26 @@ void MyFs::fill_file_with_null()
 }
 
 
-int MyFs::find_inode_number(const std::string& file_name, const inode_list& dirent)
+int MyFs::find_inode_number(const std::string& file_name, const dir_entry_list& dirent)
 {
-	int inode_number = 0;
-
-
-	for (const inode& file : dirent)
+	for (const DirEntry& entry : dirent)
 	{
-		if (std::string(file.name) == file_name)
+		if (std::memcmp(file_name.c_str(), entry.name, NAME_SIZE) == 0)
 		{
-			return inode_number;
+			return entry.inode_number;
 		}
-		inode_number++;
 	}
 	throw std::runtime_error("Error: file not found");
 }
 
 
-int MyFs::find_free_sector(const uint16_t& addr)
+int MyFs::search_free_bit(const uint16_t& addr)
 {
 	char buffer[SECTOR_SIZE] = {0};
-	uint16_t total_bytes = SECTORES_OF_DATA / 8; 
 
 	blkdevsim->read(addr, buffer);
 
-	for (size_t i = 0; i < total_bytes; i++)
+	for (size_t i = 0; i < SECTOR_SIZE; i++)
 	{
 		if (buffer[i] == 255) continue; // all byte(8 sectors) are full.
 

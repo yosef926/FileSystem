@@ -6,7 +6,6 @@
 
 #include "blkdev.h"
 
-#define CURR_VERSION = 3;
 #define NAME_SIZE 12
 #define MAX_SECTORS_FOR_A_FILE 8 // 4KB file
 #define AMOUNT_OF_RESERVED_ITEMS 12
@@ -16,7 +15,8 @@ struct myfs_header {
     uint8_t magic[sizeof(MYFS_MAGIC)];
     uint16_t version;
     uint16_t sector_size;
-    uint16_t bitmap_address;
+    uint16_t bitmap_table_address;
+    uint16_t bitmap_content_address;
     uint16_t inode_table_address;
     uint16_t content_address;
 };
@@ -40,6 +40,7 @@ struct inode
     uint32_t data_locations[MAX_SECTORS_FOR_A_FILE];      // 32
 };
 
+constexpr uint16_t CURR_VERSION = 3;
 constexpr uint16_t SECTOR_SIZE = 512;
 constexpr uint32_t AMOUNT_OF_SECTORS = BlockDeviceSimulator::DEVICE_SIZE / SECTOR_SIZE;
 constexpr uint32_t SECTORES_OF_DATA = (AMOUNT_OF_SECTORS - 3) * 0.95; // 3 is (headers + 2*bitmap) sectors
