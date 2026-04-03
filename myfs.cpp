@@ -20,7 +20,6 @@ MyFs::MyFs(BlockDeviceSimulator *blkdevsim_):blkdevsim(blkdevsim_)
 
 	struct myfs_header* metadata = reinterpret_cast<myfs_header*>(headers_raw_data.data());
 	
-	//std::cout << "hello" << metadata->version << std::endl;
 	
 	if (std::memcmp(metadata->magic, MYFS_MAGIC, sizeof(metadata->magic)) != 0 ||
 	    (metadata->version != CURR_VERSION)) {
@@ -60,12 +59,8 @@ void MyFs::insert_fs_headers()
 }
 
 
-uint32_t MyFs::write_new_inode()
+void MyFs::write_new_inode(const uint32_t& inode_number)
 {
-		std::cout << 1 << std::endl;
-
-	int inode_number = search_free_bit(BITMAP_TABLE_ADDRESS);
-
 	std::array<uint16_t, 2> locations = calc_inode_write_locations(inode_number); // location[0] = sector, location[1] = offset
 	
 	char buffer[SECTOR_SIZE] = {0};
@@ -73,11 +68,14 @@ uint32_t MyFs::write_new_inode()
 	blkdevsim->read(locations[0], buffer);
 
 	inode new_inode = { 0 };
+	for (int i = 0; i < MAX_SECTORS_FOR_A_FILE; i++)
+	{
+		new_inode.data_locations[i] = -1;
+	}
 
 	std::memcpy(buffer + locations[1], &new_inode, sizeof(inode));
 
 	blkdevsim->write(locations[0], buffer);
-	return inode_number;
 }
 
 
@@ -114,6 +112,8 @@ std::string MyFs::get_parent_path(const std::string& path)
 
 std::string MyFs::get_file_name_from_path(const std::string& path)
 {
+	if (path == "/") return path;
+
 	size_t last_slash_idx = path.find_last_of('/');
 
     if (last_slash_idx == std::string::npos) {
@@ -131,20 +131,23 @@ std::string MyFs::does_file_exists(const dir_entry_list& parent_entries, const s
 	{
 		if (std::memcmp(dir_entry.name, file_name.c_str(), file_name.size()) == 0)
 		{
-			return file_name;
+			throw std::runtime_error("Failed to create file: A file with this name already exists in this folder\n");
 		}
 	}
-	throw std::runtime_error("Failed to create file: A file with name already exists in this folder\n");
+	return file_name;
 }
+
+
+
 
 
 void MyFs::create_file(const std::string& path, bool directory)
 {
 	dir_entry_list root_entries = get_dir_entries(0);
-
-	// Check 1 - if this method throw error means no free sector was found for the new file
-	search_free_bit(BITMAP_CONTENT_ADDRESS);
 	std::string parent_path = get_parent_path(path);
+	
+	// Check 1 - if this method throw error means no free sector is available for a new file
+	uint32_t inode_number = search_free_bit(BITMAP_TABLE_ADDRESS);
 
 	// Check 2 - if ls_command not crash means all files in path are really folders(except last one which is file OR folder)
 	dir_entry_list parent_entries = ls_command(parent_path);
@@ -152,18 +155,21 @@ void MyFs::create_file(const std::string& path, bool directory)
 	//check 3
 	std::string file_name = does_file_exists(parent_entries, path);
 
-	uint32_t inode_number = write_new_inode();
 
-	DirEntry entry = initialize_entry(file_name, directory, inode_number);
+	write_new_inode(inode_number);
 
-	inode parent_inode = get_parent_inode(parent_path);
+	//DirEntry entry = initialize_entry(file_name, directory, inode_number);
 
-	write_entry_to_dir(entry, parent_inode);
+	//inode parent_inode = get_parent_inode(parent_path);
+
+	//write_entry_to_dir(entry, parent_inode);
 }
 
 
 inode MyFs::get_parent_inode(const std::string& parent_path)
 {
+	if (parent_path == "/") return get_inode(0);
+
 	dir_entry_list grandfather_entries;
 	if (parent_path == "/")
 	{
@@ -242,6 +248,7 @@ uint32_t MyFs::get_sector_number_to_write_entry(const inode& dir_inode)
 {
 	for (int i = 0; i < MAX_SECTORS_FOR_A_FILE; i++)
 	{
+		std::cout << dir_inode.data_locations[i] << std::endl;
 		if (dir_inode.data_locations[i] == std::numeric_limits<uint32_t>::max())
 		{
 			return search_free_bit(BITMAP_CONTENT_ADDRESS);
@@ -465,7 +472,6 @@ MyFs::dir_entry_list MyFs::get_dir_entries(const uint32_t& inode_number)
 		}
 		else break;
 	}
-
 	return entries;
 }
 
@@ -626,6 +632,8 @@ int MyFs::resolve_path(const std::vector<std::string>& parts)
 
 MyFs::dir_entry_list MyFs::ls_command(const std::string& path)
 {
+	if (path == "/") return get_dir_entries(0);
+
 	std::vector<std::string> parts = split_path_by_slash(path);
 
 	int parent_dir_inode_number = resolve_path(parts);

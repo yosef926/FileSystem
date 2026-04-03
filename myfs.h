@@ -90,7 +90,7 @@ public:
 
 
 	// Inode table
-	uint32_t write_new_inode();
+	void write_new_inode(const uint32_t& inode_number);
 	std::vector<inode> map_sector_to_inodes(const std::vector<uint8_t>& buffer);
 	inode get_inode(const uint32_t& inode_number);
 	int find_inode_number(const std::string& file_name, const dir_entry_list& dirent);

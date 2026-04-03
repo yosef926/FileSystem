@@ -148,7 +148,7 @@ int main(int argc, char **argv)
 			}
 		} catch (std::runtime_error &e) {
 			std::cout << "catch" << std::endl;
-			std::cout << 111 << e.what() << std::endl;
+			//std::cout << 111 << e.what() << std::endl;
 		}
 	}
 }
