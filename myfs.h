@@ -79,25 +79,23 @@ public:
 	std::string does_file_exists(const dir_entry_list& parent_entries, const std::string& path);
 
 	// Files
-	void update_file_headers(const std::string& content, const std::vector<int>& sectors, DirEntry& entry);	
+	void update_entry(const std::string& content, const std::vector<int>& sectors, DirEntry& entry);	
 	void handle_write_content(DirEntry& entry, std::string& content);
 	std::vector<int> write_to_new_sectors(std::string content);
 	std::vector<int> append_to_last_sector(std::string& content, uint32_t last_sector_addr, int remaining_space_in_last_sector);
 	std::vector<int> append_content_to_file(std::string content, DirEntry& entry);
 	int calc_remain_space_in_last_sector(uint32_t last_sector_addr);
-	uint32_t write_new_inode();
-	void write_new_file_metadata(const DirEntry& entry);
 	bool does_entry_exists(const dir_entry_list& parent_entries, const std::string& file_name);
+	DirEntry initialize_entry(const std::string& file_name, uint16_t is_dir, const uint32_t& inode_number);
 
 
 	// Inode table
-	DirEntry initialize_entry(const std::string& file_name, uint16_t is_dir, const uint32_t& inode_number);
+	uint32_t write_new_inode();
 	std::vector<inode> map_sector_to_inodes(const std::vector<uint8_t>& buffer);
-	void update_inode_table(const inode& partent_inode);
 	inode get_inode(const uint32_t& inode_number);
-	inode find_inode(const std::string& path, const inode_list& dirent);
 	int find_inode_number(const std::string& file_name, const dir_entry_list& dirent);
-	std::array<uint16_t, 2> find_available_inode_sector(uint16_t inode_number);
+	std::array<uint16_t, 2> calc_inode_write_locations(uint16_t inode_number);
+	inode get_parent_inode(const std::string& parent_path);
 
 
 	// Folders(entries, path, etc...)
@@ -106,8 +104,9 @@ public:
 	int update_parent_inode_metadata(const DirEntry& entry, inode& parent_inode);
 	bool does_dir_last_sector_full(const inode& parent_dir);
 	int calc_offset_for_dirEntry(DirEntry* dirEntry_array);
-	void write_entry_to_dir(const DirEntry& entry, int sector_number);
+	void write_entry_to_dir(const DirEntry& entry, const inode& dir_inode);
 	dir_entry_list get_dir_entries(const uint32_t& inode_number);
+	uint32_t get_sector_number_to_write_entry(const inode& dir_inode);
 };
 
 #endif // __MYFS_H__

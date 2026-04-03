@@ -40,6 +40,7 @@ std::vector<std::string> split_cmd(std::string cmd) {
 }
 
 static void recursive_print(MyFs &myfs, std::string path, std::string prefix="") {
+	/*
 	MyFs::inode_list dlist = myfs.list_all_inodes(path);
 	for (size_t i=0; i < dlist.size(); i++) {
 		inode& curr_inode = dlist[i];
@@ -62,18 +63,21 @@ static void recursive_print(MyFs &myfs, std::string path, std::string prefix="")
 			recursive_print(myfs, path + "/" + (char*)curr_inode.name, dir_prefix);
 		}
 	}
+	*/
+	return;
 }
 
 
-int main(int argc, char **argv) {
-
+int main(int argc, char **argv)
+{
 	if (argc != 2) {
 		std::cerr << "Please provide the file to operate on" << std::endl;
 		return -1;
 	}
-
 	BlockDeviceSimulator *blkdevptr = new BlockDeviceSimulator(argv[1]);
+
 	MyFs myfs(blkdevptr);
+
 	bool exit = false;
 
 	std::cout << "Welcome to " << FS_NAME << std::endl;
@@ -90,11 +94,11 @@ int main(int argc, char **argv) {
 			
 			std::vector<std::string> cmd = split_cmd(cmdline);
 			if (cmd[0] == LIST_CMD) {
-				MyFs::inode_list dlist;
+				MyFs::dir_entry_list dlist;
 				if (cmd.size() == 1)
-					dlist = myfs.list_all_inodes("/");
+					dlist = myfs.get_dir_entries(0);
 				else if (cmd.size() == 2)
-					dlist = myfs.list_all_inodes(cmd[1]);
+					dlist = myfs.ls_command(cmd[1]);
 				else
 					std::cout << LIST_CMD << ": one or zero arguments requested" << std::endl;
 
@@ -143,7 +147,8 @@ int main(int argc, char **argv) {
 				std::cout << "unknown command: " << cmd[0] << std::endl;
 			}
 		} catch (std::runtime_error &e) {
-			std::cout << e.what() << std::endl;
+			std::cout << "catch" << std::endl;
+			std::cout << 111 << e.what() << std::endl;
 		}
 	}
 }
