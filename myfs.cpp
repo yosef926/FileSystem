@@ -626,10 +626,9 @@ int MyFs::resolve_path(const std::vector<std::string>& parts)
 
 	for (size_t i = 0; i < parts.size(); i++)
 	{
-		std::cout << parts.at(i) << std::endl;
 		for (size_t j = 0; j < curr_entries.size(); j++)
 		{
-			if (std::memcmp(parts.at(i).c_str(), curr_entries.at(i).name, NAME_SIZE) == 0 && curr_entries.at(i).is_dir)
+			if (std::strncmp(reinterpret_cast<const char*>(curr_entries.at(j).name), parts.at(i).c_str(), NAME_SIZE) == 0 && curr_entries.at(j).is_dir)
 			{
 				//std::cout << curr_entries.at(j).inode_number << std::endl;
 				if (i == parts.size() - 1) return curr_entries.at(j).inode_number;
