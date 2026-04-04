@@ -97,7 +97,7 @@ public:
 	inode get_inode(const uint32_t& inode_number);
 	int find_inode_number(const std::string& file_name, const dir_entry_list& dirent);
 	std::array<uint16_t, 2> calc_inode_write_locations(uint16_t inode_number);
-	inode get_parent_inode(const std::string& parent_path);
+	uint32_t get_parent_inode_number(const std::string& parent_path);
 
 
 	// Folders(entries, path, etc...)

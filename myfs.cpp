@@ -143,7 +143,7 @@ uint32_t MyFs::pre_create_checks(const std::string& path)
 	std::string file_name = get_file_name_from_path(path);
 	if (file_name.size() >= NAME_SIZE)
 	{
-    	throw std::runtime_error("Errir: Filename too long!");
+    	throw std::runtime_error("Error: Filename too long!");
 	}
 
 	//check 4
@@ -168,7 +168,15 @@ inode MyFs::initialize_inode()
 
 void MyFs::create_file(const std::string& path, bool directory)
 {
-	uint32_t inode_number = pre_create_checks(path);
+	uint32_t inode_number;
+	if (path != "/")
+	{
+		inode_number = pre_create_checks(path);
+	}
+	else
+	{
+		inode_number = search_free_bit(BITMAP_TABLE_ADDRESS);
+	}
 
 	inode new_inode = initialize_inode();
 	write_new_inode(inode_number, new_inode);
@@ -178,36 +186,29 @@ void MyFs::create_file(const std::string& path, bool directory)
 		std::string file_name = get_file_name_from_path(path);
 		DirEntry entry = initialize_entry(file_name, directory, inode_number);
 
-		inode parent_inode = get_parent_inode(path);
+		uint32_t parent_inode_number = get_parent_inode_number(path);
+		inode parent_inode = get_inode(parent_inode_number);
 
-		write_entry_to_dir(entry, parent_inode, inode_number);
+		write_entry_to_dir(entry, parent_inode, parent_inode_number);
 	}
 }
 
 
-inode MyFs::get_parent_inode(const std::string& path)
+uint32_t MyFs::get_parent_inode_number(const std::string& path)
 {
 	std::string parent_path = get_parent_path(path);
 
-	if (parent_path == "/") return get_inode(0);
+	if (parent_path == "/") return 0;
 
-	dir_entry_list grandfather_entries;
-	if (parent_path == "/")
-	{
-		grandfather_entries = ls_command(parent_path);
-	}
-	else
-	{
-		std::string grandfather_path = get_parent_path(parent_path);
-		grandfather_entries = ls_command(grandfather_path);
-	}
+	std::string grandfather_path = get_parent_path(parent_path);
+	dir_entry_list grandfather_entries = ls_command(grandfather_path);
 
 	std::string parent_name = get_file_name_from_path(parent_path);
 	for (size_t i = 0; i < grandfather_entries.size(); i++)
 	{
 		if (std::memcmp(grandfather_entries.at(i).name, parent_name.c_str(), NAME_SIZE) == 0)
 		{
-			return get_inode(grandfather_entries.at(i).inode_number);
+			return grandfather_entries.at(i).inode_number;
 		}
 	}
 	throw std::runtime_error("Error: couldn't find parent inode");
@@ -475,6 +476,7 @@ MyFs::dir_entry_list MyFs::get_dir_entries(const uint32_t& inode_number)
 
 			for (const auto& dir_entry : curr_sector_entries)
 			{
+				//std::cout << dir_entry.inode_number << std::endl;
 				if (dir_entry.name[0] != 0) entries.push_back(dir_entry);
 				else break;
 			}
@@ -625,11 +627,12 @@ int MyFs::resolve_path(const std::vector<std::string>& parts)
 	{
 		for (size_t j = 0; j < curr_entries.size(); j++)
 		{
-			if (std::memcmp(parts.at(i).c_str(), curr_entries.at(i).name, NAME_SIZE) && curr_entries.at(i).is_dir)
+			if (std::memcmp(parts.at(i).c_str(), curr_entries.at(i).name, NAME_SIZE) == 0 && curr_entries.at(i).is_dir)
 			{
+				//std::cout << curr_entries.at(j).inode_number << std::endl;
+				if (i == parts.size() - 1) return curr_entries.at(j).inode_number;
 				curr_entries = get_dir_entries(curr_entries.at(j).inode_number);
 				found = true;
-				if (i == parts.size() - 1) return i;
 			}
 		}
 		if(!found) throw std::runtime_error("Error: path is incorrect");
