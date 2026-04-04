@@ -70,6 +70,7 @@ void MyFs::write_new_inode(const uint32_t& inode_number, const inode& new_inode)
 	std::memcpy(buffer + locations[1], &new_inode, sizeof(inode));
 
 	blkdevsim->write(locations[0], buffer);
+	std::cout << "sector: " << locations[0] << ", offset: " << locations[1] << std::endl;
 }
 
 
@@ -100,7 +101,7 @@ std::string MyFs::get_parent_path(const std::string& path)
     if (last_slash_idx == std::string::npos || last_slash_idx == 0) {
         return "/"; 
     }
-    return path.substr(0, last_slash_idx + 1);
+    return path.substr(0, last_slash_idx);
 }
 
 
@@ -132,12 +133,12 @@ void MyFs::does_file_exists(const dir_entry_list& parent_entries, const std::str
 uint32_t MyFs::pre_create_checks(const std::string& path)
 {
 	std::string parent_path = get_parent_path(path);
-	
-	// Check 1 - if this method throw error means no free sector is available for a new file
-	uint32_t inode_number = search_free_bit(BITMAP_TABLE_ADDRESS);
 
-	// Check 2 - if ls_command not crash means all files in path are really folders(except last one which is file OR folder)
+	// Check 1 - if ls_command not crash means all files in path are really folders(except last one which is file OR folder)
 	dir_entry_list parent_entries = ls_command(parent_path);
+
+	// Check 2 - if this method throw error means no free sector is available for a new file
+	uint32_t inode_number = search_free_bit(BITMAP_TABLE_ADDRESS);
 
 	//check 3
 	std::string file_name = get_file_name_from_path(path);
@@ -197,16 +198,16 @@ void MyFs::create_file(const std::string& path, bool directory)
 uint32_t MyFs::get_parent_inode_number(const std::string& path)
 {
 	std::string parent_path = get_parent_path(path);
-
 	if (parent_path == "/") return 0;
 
 	std::string grandfather_path = get_parent_path(parent_path);
 	dir_entry_list grandfather_entries = ls_command(grandfather_path);
 
 	std::string parent_name = get_file_name_from_path(parent_path);
+
 	for (size_t i = 0; i < grandfather_entries.size(); i++)
 	{
-		if (std::memcmp(grandfather_entries.at(i).name, parent_name.c_str(), NAME_SIZE) == 0)
+		if (std::strncmp(reinterpret_cast<const char*>(grandfather_entries.at(i).name), parent_name.c_str(), NAME_SIZE) == 0)
 		{
 			return grandfather_entries.at(i).inode_number;
 		}
@@ -625,6 +626,7 @@ int MyFs::resolve_path(const std::vector<std::string>& parts)
 
 	for (size_t i = 0; i < parts.size(); i++)
 	{
+		std::cout << parts.at(i) << std::endl;
 		for (size_t j = 0; j < curr_entries.size(); j++)
 		{
 			if (std::memcmp(parts.at(i).c_str(), curr_entries.at(i).name, NAME_SIZE) == 0 && curr_entries.at(i).is_dir)
