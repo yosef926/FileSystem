@@ -72,11 +72,12 @@ public:
 
 
 	// Technical
+	uint32_t pre_create_checks(const std::string& path);
 	std::vector<std::string> split_path_by_slash(const std::string& path);
 	int search_free_bit(const uint16_t& addr);
 	std::string get_parent_path(const std::string& path);
 	std::string get_file_name_from_path(const std::string& path);
-	std::string does_file_exists(const dir_entry_list& parent_entries, const std::string& path);
+	void does_file_exists(const dir_entry_list& parent_entries, const std::string& file_name);
 
 	// Files
 	void update_entry(const std::string& content, const std::vector<int>& sectors, DirEntry& entry);	
@@ -90,7 +91,8 @@ public:
 
 
 	// Inode table
-	void write_new_inode(const uint32_t& inode_number);
+	void write_new_inode(const uint32_t& inode_number, const inode& new_inode);
+	inode initialize_inode();
 	std::vector<inode> map_sector_to_inodes(const std::vector<uint8_t>& buffer);
 	inode get_inode(const uint32_t& inode_number);
 	int find_inode_number(const std::string& file_name, const dir_entry_list& dirent);
@@ -101,12 +103,11 @@ public:
 	// Folders(entries, path, etc...)
 	void handle_adding_entry_to_dir(const inode_list& dirent, const DirEntry& entry);
 	DirEntry create_dir_entry(const std::string& file_name, const uint32_t& inode_number);
-	int update_parent_inode_metadata(const DirEntry& entry, inode& parent_inode);
 	bool does_dir_last_sector_full(const inode& parent_dir);
 	int calc_offset_for_dirEntry(DirEntry* dirEntry_array);
-	void write_entry_to_dir(const DirEntry& entry, const inode& dir_inode);
+	void write_entry_to_dir(const DirEntry& entry, inode& dir_inode, const uint32_t& inode_number);
 	dir_entry_list get_dir_entries(const uint32_t& inode_number);
-	uint32_t get_sector_number_to_write_entry(const inode& dir_inode);
+	uint32_t get_sector_number_to_write_entry(inode& dir_inode);
 };
 
 #endif // __MYFS_H__

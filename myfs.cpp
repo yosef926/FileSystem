@@ -59,19 +59,13 @@ void MyFs::insert_fs_headers()
 }
 
 
-void MyFs::write_new_inode(const uint32_t& inode_number)
+void MyFs::write_new_inode(const uint32_t& inode_number, const inode& new_inode)
 {
 	std::array<uint16_t, 2> locations = calc_inode_write_locations(inode_number); // location[0] = sector, location[1] = offset
 	
 	char buffer[SECTOR_SIZE] = {0};
 
 	blkdevsim->read(locations[0], buffer);
-
-	inode new_inode = { 0 };
-	for (int i = 0; i < MAX_SECTORS_FOR_A_FILE; i++)
-	{
-		new_inode.data_locations[i] = -1;
-	}
 
 	std::memcpy(buffer + locations[1], &new_inode, sizeof(inode));
 
@@ -123,10 +117,8 @@ std::string MyFs::get_file_name_from_path(const std::string& path)
 }
 
 
-std::string MyFs::does_file_exists(const dir_entry_list& parent_entries, const std::string& path)
+void MyFs::does_file_exists(const dir_entry_list& parent_entries, const std::string& file_name)
 {
-	std::string file_name = get_file_name_from_path(path);
-
 	for (const DirEntry& dir_entry : parent_entries)
 	{
 		if (std::memcmp(dir_entry.name, file_name.c_str(), file_name.size()) == 0)
@@ -134,16 +126,11 @@ std::string MyFs::does_file_exists(const dir_entry_list& parent_entries, const s
 			throw std::runtime_error("Failed to create file: A file with this name already exists in this folder\n");
 		}
 	}
-	return file_name;
 }
 
 
-
-
-
-void MyFs::create_file(const std::string& path, bool directory)
+uint32_t MyFs::pre_create_checks(const std::string& path)
 {
-	dir_entry_list root_entries = get_dir_entries(0);
 	std::string parent_path = get_parent_path(path);
 	
 	// Check 1 - if this method throw error means no free sector is available for a new file
@@ -153,21 +140,55 @@ void MyFs::create_file(const std::string& path, bool directory)
 	dir_entry_list parent_entries = ls_command(parent_path);
 
 	//check 3
-	std::string file_name = does_file_exists(parent_entries, path);
+	std::string file_name = get_file_name_from_path(path);
+	if (file_name.size() >= NAME_SIZE)
+	{
+    	throw std::runtime_error("Errir: Filename too long!");
+	}
 
-
-	write_new_inode(inode_number);
-
-	//DirEntry entry = initialize_entry(file_name, directory, inode_number);
-
-	//inode parent_inode = get_parent_inode(parent_path);
-
-	//write_entry_to_dir(entry, parent_inode);
+	//check 4
+	does_file_exists(parent_entries, file_name);
+	
+	return inode_number;
 }
 
 
-inode MyFs::get_parent_inode(const std::string& parent_path)
+inode MyFs::initialize_inode()
 {
+	inode new_inode = {0};
+
+	for (size_t i = 0; i < MAX_SECTORS_FOR_A_FILE; i++)
+	{
+		new_inode.data_locations[i] = -1;
+	}
+
+	return new_inode;
+}
+
+
+void MyFs::create_file(const std::string& path, bool directory)
+{
+	uint32_t inode_number = pre_create_checks(path);
+
+	inode new_inode = initialize_inode();
+	write_new_inode(inode_number, new_inode);
+
+	if (path != "/")
+	{
+		std::string file_name = get_file_name_from_path(path);
+		DirEntry entry = initialize_entry(file_name, directory, inode_number);
+
+		inode parent_inode = get_parent_inode(path);
+
+		write_entry_to_dir(entry, parent_inode, inode_number);
+	}
+}
+
+
+inode MyFs::get_parent_inode(const std::string& path)
+{
+	std::string parent_path = get_parent_path(path);
+
 	if (parent_path == "/") return get_inode(0);
 
 	dir_entry_list grandfather_entries;
@@ -192,26 +213,6 @@ inode MyFs::get_parent_inode(const std::string& parent_path)
 	throw std::runtime_error("Error: couldn't find parent inode");
 }
 
-/*
-int MyFs::update_parent_inode_metadata(const DirEntry& entry, inode& parent_inode)
-{
-	int sector_number;
-
-	if (parent_inode.number_of_sectors == 0 || does_dir_last_sector_full(parent_inode))
-	{
-		sector_number = find_free_sector(BITMAP_CONTENT_ADDRESS);
-		parent_inode.number_of_sectors++;
-		parent_inode.data_locations[parent_inode.number_of_sectors - 1] = sector_number;
-	}
-	else
-	{
-		sector_number = parent_inode.data_locations[parent_inode.number_of_sectors - 1];
-	}
-
-
-	return sector_number;
-}
-*/
 
 /*
 bool MyFs::does_dir_last_sector_full(const inode& parent_dir)
@@ -226,9 +227,11 @@ bool MyFs::does_dir_last_sector_full(const inode& parent_dir)
 */
 
 
-void MyFs::write_entry_to_dir(const DirEntry& entry, const inode& dir_inode)
+void MyFs::write_entry_to_dir(const DirEntry& entry, inode& dir_inode, const uint32_t& inode_number)
 {
 	int sector_number = get_sector_number_to_write_entry(dir_inode);
+
+	write_new_inode(inode_number, dir_inode);
 
 	uint16_t target_addr = CONTENT_ADDRESS + (sector_number * SECTOR_SIZE);
 
@@ -244,17 +247,23 @@ void MyFs::write_entry_to_dir(const DirEntry& entry, const inode& dir_inode)
 }
 
 
-uint32_t MyFs::get_sector_number_to_write_entry(const inode& dir_inode)
+uint32_t MyFs::get_sector_number_to_write_entry(inode& dir_inode)
 {
-	for (int i = 0; i < MAX_SECTORS_FOR_A_FILE; i++)
-	{
-		std::cout << dir_inode.data_locations[i] << std::endl;
-		if (dir_inode.data_locations[i] == std::numeric_limits<uint32_t>::max())
-		{
-			return search_free_bit(BITMAP_CONTENT_ADDRESS);
-		}
-	}
-	throw std::runtime_error("Error: no more space in disk");
+    for (int i = 0; i < MAX_SECTORS_FOR_A_FILE; i++)
+    {
+        if (dir_inode.data_locations[i] == std::numeric_limits<uint32_t>::max())
+        {
+            uint32_t new_sector = search_free_bit(BITMAP_CONTENT_ADDRESS);
+            dir_inode.data_locations[i] = new_sector;
+            return new_sector;
+        }
+
+        if (!is_sector_full(dir_inode.data_locations[i]))
+        {
+            return dir_inode.data_locations[i];
+        }
+    }
+    throw std::runtime_error("Error: directory is full (max sectors reached)");
 }
 
 
@@ -290,7 +299,7 @@ DirEntry MyFs::initialize_entry(const std::string& file_name, uint16_t is_dir, c
 {
 	DirEntry entry = {0};
 
-	std::memcpy(entry.name, file_name.c_str(), NAME_SIZE);
+	std::memcpy(entry.name, file_name.c_str(), file_name.size());	
 	entry.inode_number = inode_number;
 	entry.is_dir = is_dir;
 
