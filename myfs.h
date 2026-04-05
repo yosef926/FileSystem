@@ -66,7 +66,7 @@ public:
 	// General
 	void fill_file_with_null();
 	void insert_fs_headers();
-	bool is_sector_full(int sector_to_check);
+	bool is_sector_full(int sector_to_check, size_t jump_size);
 	int resolve_path(const std::vector<std::string>& parts);
 	buffer_data_type get_sector_data(uint32_t addr);
 
@@ -78,6 +78,8 @@ public:
 	std::string get_parent_path(const std::string& path);
 	std::string get_file_name_from_path(const std::string& path);
 	void does_file_exists(const dir_entry_list& parent_entries, const std::string& file_name);
+	void does_inode_table_full();
+
 
 	// Files
 	void update_entry(const std::string& content, const std::vector<int>& sectors, DirEntry& entry);	

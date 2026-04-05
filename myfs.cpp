@@ -37,6 +37,22 @@ void MyFs::format() {
 	insert_fs_headers();
 
 	create_file("/", true);
+
+	create_file("/dir2", true);
+
+	create_file("/dir3", true);
+
+	create_file("/dir2/file1", false);
+
+	for (int i = 0; i < 3; i++)
+	{
+		create_file("/dir3/" + std::to_string(i), false);
+	}
+
+	for (int i = 0; i < 16; i++)
+	{
+		create_file("/dir2/" + std::to_string(i), false);
+	}
 }
 
 
@@ -70,7 +86,7 @@ void MyFs::write_new_inode(const uint32_t& inode_number, const inode& new_inode)
 	std::memcpy(buffer + locations[1], &new_inode, sizeof(inode));
 
 	blkdevsim->write(locations[0], buffer);
-	std::cout << "sector: " << locations[0] << ", offset: " << locations[1] << std::endl;
+	//std::cout << "sector: " << locations[0] << ", offset: " << locations[1] << std::endl;
 }
 
 
@@ -130,24 +146,40 @@ void MyFs::does_file_exists(const dir_entry_list& parent_entries, const std::str
 }
 
 
+void MyFs::does_inode_table_full()
+{
+	uint32_t addr = CONTENT_ADDRESS - SECTOR_SIZE;
+	
+	buffer_data_type sector_data = get_sector_data(addr);
+
+	if (sector_data.at(SECTOR_SIZE - sizeof(inode)) != '\0')
+	{
+		throw std::runtime_error("Error: disk has reached max files");
+	}
+}
+
+
 uint32_t MyFs::pre_create_checks(const std::string& path)
 {
 	std::string parent_path = get_parent_path(path);
 
-	// Check 1 - if ls_command not crash means all files in path are really folders(except last one which is file OR folder)
+	// check 1
+	does_inode_table_full();
+
+	// Check 2 - if ls_command not crash means all files in path are really folders(except last one which is file OR folder)
 	dir_entry_list parent_entries = ls_command(parent_path);
 
-	// Check 2 - if this method throw error means no free sector is available for a new file
+	// Check 3 - if this method throw error means no free sector is available for a new file
 	uint32_t inode_number = search_free_bit(BITMAP_TABLE_ADDRESS);
 
-	//check 3
+	//check 4
 	std::string file_name = get_file_name_from_path(path);
 	if (file_name.size() >= NAME_SIZE)
 	{
     	throw std::runtime_error("Error: Filename too long!");
 	}
 
-	//check 4
+	//check 5
 	does_file_exists(parent_entries, file_name);
 	
 	return inode_number;
@@ -235,7 +267,7 @@ void MyFs::write_entry_to_dir(const DirEntry& entry, inode& dir_inode, const uin
 
 	write_new_inode(inode_number, dir_inode);
 
-	uint16_t target_addr = CONTENT_ADDRESS + (sector_number * SECTOR_SIZE);
+	uint32_t target_addr = CONTENT_ADDRESS + (sector_number * SECTOR_SIZE);
 
 	MyFs::buffer_data_type sector_buffer = get_sector_data(target_addr);
 
@@ -260,12 +292,12 @@ uint32_t MyFs::get_sector_number_to_write_entry(inode& dir_inode)
             return new_sector;
         }
 
-        if (!is_sector_full(dir_inode.data_locations[i]))
+        if (!is_sector_full(dir_inode.data_locations[i], sizeof(DirEntry)))
         {
             return dir_inode.data_locations[i];
         }
     }
-    throw std::runtime_error("Error: directory is full (max sectors reached)");
+	throw std::runtime_error("Error: directory is full (" + std::to_string(ENTRIES_PER_SECTOR * MAX_SECTORS_FOR_A_FILE) + ")");
 }
 
 
@@ -591,14 +623,14 @@ void MyFs::update_entry(const std::string& content, const std::vector<int>& sect
 }
 
 
-bool MyFs::is_sector_full(int sector_to_check)
+bool MyFs::is_sector_full(int sector_to_check, size_t jump_size)
 {
 	char buffer[SECTOR_SIZE];
 	uint32_t addr = CONTENT_ADDRESS + (sector_to_check * SECTOR_SIZE);
 
 	blkdevsim->read(addr, buffer);
 
-	for (size_t i = 0; i < SECTOR_SIZE; i++)
+	for (size_t i = 0; i < SECTOR_SIZE; i+=jump_size)
 	{
 		if (buffer[i] == 0)
 		{
