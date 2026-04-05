@@ -79,7 +79,7 @@ void MyFs::insert_fs_headers()
 void MyFs::write_new_inode(const uint32_t& inode_number, const inode& new_inode)
 {
 	std::array<uint16_t, 2> locations = calc_inode_write_locations(inode_number); // location[0] = sector, location[1] = offset
-	
+
 	char buffer[SECTOR_SIZE] = {0};
 
 	blkdevsim->read(locations[0], buffer);
@@ -319,6 +319,8 @@ int MyFs::calc_offset_for_dirEntry(DirEntry* dirEntry_array)
 
 std::array<uint16_t, 2> MyFs::calc_inode_write_locations(uint16_t inode_number)
 {
+	//std::cout << "inode_number: " << inode_number << std::endl;
+	//std::cout << "INODE_TABLE_ADDRESS: " << INODE_TABLE_ADDRESS << std::endl;
 	uint16_t sector_addr = INODE_TABLE_ADDRESS + (inode_number / INODES_PER_SECTOR) * SECTOR_SIZE;
 	uint16_t offset = (inode_number % INODES_PER_SECTOR) * sizeof(inode);
 
@@ -326,6 +328,7 @@ std::array<uint16_t, 2> MyFs::calc_inode_write_locations(uint16_t inode_number)
 
 	locations[0] = sector_addr;
 	locations[1] = offset;
+	//std::cout << "sector_addr: " << locations[0] << " offset: " << locations[1] << std::endl;
 	return locations;
 }
 

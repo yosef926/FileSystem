@@ -58,10 +58,12 @@ static constexpr uint8_t ENTRIES_PER_SECTOR = SECTOR_SIZE / sizeof(DirEntry);
 
 // Calculated Addresses
 static constexpr uint16_t BITMAP_CONTENT_ADDRESS = SECTOR_SIZE;
-static constexpr uint32_t BITMAP_CONTENT_SIZE = BlockDeviceSimulator::DEVICE_SIZE * 0.95 / SECTOR_SIZE / BITS_IN_SECTOR + 1;
+static constexpr uint16_t BITMAP_CONTENT_SECTORS_REQUIRED = BlockDeviceSimulator::DEVICE_SIZE * 0.95 / SECTOR_SIZE / BITS_IN_SECTOR + 1;
+static constexpr uint32_t BITMAP_CONTENT_SIZE = BITMAP_CONTENT_SECTORS_REQUIRED * SECTOR_SIZE;
 
 static constexpr uint32_t BITMAP_TABLE_ADDRESS = BITMAP_CONTENT_ADDRESS + BITMAP_CONTENT_SIZE;
-static constexpr uint32_t BITMAP_TABLE_SIZE = BlockDeviceSimulator::DEVICE_SIZE * 0.05 / sizeof(inode) / BITS_IN_SECTOR + 1;
+static constexpr uint16_t BITMAP_TABLE_SECTORS_REQUIRED = BlockDeviceSimulator::DEVICE_SIZE * 0.05 / sizeof(inode) / BITS_IN_SECTOR + 1;
+static constexpr uint32_t BITMAP_TABLE_SIZE = BITMAP_TABLE_SECTORS_REQUIRED * SECTOR_SIZE;
 
 static constexpr uint32_t INODE_TABLE_ADDRESS = BITMAP_TABLE_ADDRESS + BITMAP_TABLE_SIZE;
 static constexpr uint32_t INODE_TABLE_SIZE = (BlockDeviceSimulator::DEVICE_SIZE - SECTOR_SIZE - BITMAP_CONTENT_SIZE - BITMAP_TABLE_SIZE) * 0.05;
