@@ -37,7 +37,7 @@ void MyFs::format() {
 	insert_fs_headers();
 
 	create_file("/", true);
-
+	/*
 	create_file("/dir2", true);
 
 	create_file("/dir3", true);
@@ -53,6 +53,7 @@ void MyFs::format() {
 	{
 		create_file("/dir2/" + std::to_string(i), false);
 	}
+	*/
 }
 
 
@@ -64,8 +65,8 @@ void MyFs::insert_fs_headers()
 
 	header_ptr->version = CURR_VERSION;
 	header_ptr->sector_size = SECTOR_SIZE;
-	header_ptr->bitmap_table_address = BITMAP_TABLE_ADDRESS;
 	header_ptr->bitmap_content_address = BITMAP_CONTENT_ADDRESS;
+	header_ptr->bitmap_table_address = BITMAP_TABLE_ADDRESS;
 	header_ptr->inode_table_address = INODE_TABLE_ADDRESS;
 	header_ptr->content_address = CONTENT_ADDRESS;
 
