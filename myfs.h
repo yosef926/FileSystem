@@ -90,6 +90,7 @@ public:
 	int calc_remain_space_in_last_sector(uint32_t last_sector_addr);
 	bool does_entry_exists(const dir_entry_list& parent_entries, const std::string& file_name);
 	DirEntry initialize_entry(const std::string& file_name, uint16_t is_dir, const uint32_t& inode_number);
+	DirEntry get_file_entry_from_path(const std::string& path);
 
 
 	// Inode table

@@ -341,7 +341,8 @@ DirEntry MyFs::initialize_entry(const std::string& file_name, uint16_t is_dir, c
 }
 
 
-std::string MyFs::get_content(const std::string& path) {
+std::string MyFs::get_content(const std::string& path)
+{
 	/*
 	inode_list dirent = list_root_entries();
 	inode file = find_inode(path, dirent);
@@ -475,21 +476,29 @@ void MyFs::handle_write_content(DirEntry& entry, std::string& content)
 }
 
 
-void MyFs::set_content(const std::string& path, std::string& content) {
-	/*
-	inode_list dirent = list_root_inodes("/");
+DirEntry MyFs::get_file_entry_from_path(const std::string& path)
+{
+	std::string parent_path = get_parent_path(path);
+	dir_entry_list parent_entries = ls_command(parent_path);
 
-	if (!is_path_exist(dirent, path))
+	std::string file_name = get_file_name_from_path(path);
+
+	for (const DirEntry& curr_entry : parent_entries)
 	{
-		throw std::runtime_error("inode not found: " + path);
+		if (std::strncmp(reinterpret_cast<const char*>(curr_entry.name), file_name.c_str(), NAME_SIZE) == 0)
+		{
+			return curr_entry;
+		}
 	}
+	throw std::runtime_error("Error: there is no file *" + file_name + "* in this directory");
+}
 
+
+void MyFs::set_content(const std::string& path, std::string& content)
+{
+	DirEntry file_entry = get_file_entry_from_path(path);
+	
 	content.push_back('\0');
-
-	inode file = get_inode(inode_number);
-	handle_write_content(file, content);
-	*/
-	return;
 }
 
 
