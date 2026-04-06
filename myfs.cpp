@@ -78,7 +78,7 @@ void MyFs::insert_fs_headers()
 
 void MyFs::write_new_inode(const uint32_t& inode_number, const inode& new_inode)
 {
-	std::array<uint16_t, 2> locations = calc_inode_write_locations(inode_number); // location[0] = sector, location[1] = offset
+	std::array<uint32_t, 2> locations = calc_inode_write_locations(inode_number); // location[0] = sector, location[1] = offset
 
 	char buffer[SECTOR_SIZE] = {0};
 
@@ -87,7 +87,6 @@ void MyFs::write_new_inode(const uint32_t& inode_number, const inode& new_inode)
 	std::memcpy(buffer + locations[1], &new_inode, sizeof(inode));
 
 	blkdevsim->write(locations[0], buffer);
-	//std::cout << "sector: " << locations[0] << ", offset: " << locations[1] << std::endl;
 }
 
 
@@ -171,7 +170,7 @@ uint32_t MyFs::pre_create_checks(const std::string& path)
 	dir_entry_list parent_entries = ls_command(parent_path);
 
 	// Check 3 - if this method throw error means no free sector is available for a new file
-	uint32_t inode_number = search_free_bit(BITMAP_TABLE_ADDRESS);
+	uint32_t inode_number = search_free_bit(BITMAP_TABLE_ADDRESS, BITMAP_TABLE_SECTORS_REQUIRED);
 
 	//check 4
 	std::string file_name = get_file_name_from_path(path);
@@ -209,7 +208,7 @@ void MyFs::create_file(const std::string& path, bool directory)
 	}
 	else
 	{
-		inode_number = search_free_bit(BITMAP_TABLE_ADDRESS);
+		inode_number = search_free_bit(BITMAP_TABLE_ADDRESS, BITMAP_TABLE_SECTORS_REQUIRED);
 	}
 
 	inode new_inode = initialize_inode();
@@ -288,7 +287,7 @@ uint32_t MyFs::get_sector_number_to_write_entry(inode& dir_inode)
     {
         if (dir_inode.data_locations[i] == std::numeric_limits<uint32_t>::max())
         {
-            uint32_t new_sector = search_free_bit(BITMAP_CONTENT_ADDRESS);
+            uint32_t new_sector = search_free_bit(BITMAP_CONTENT_ADDRESS, BITMAP_CONTENT_SECTORS_REQUIRED);
             dir_inode.data_locations[i] = new_sector;
             return new_sector;
         }
@@ -317,18 +316,15 @@ int MyFs::calc_offset_for_dirEntry(DirEntry* dirEntry_array)
 }
 
 
-std::array<uint16_t, 2> MyFs::calc_inode_write_locations(uint16_t inode_number)
+std::array<uint32_t, 2> MyFs::calc_inode_write_locations(uint32_t inode_number)
 {
-	//std::cout << "inode_number: " << inode_number << std::endl;
-	//std::cout << "INODE_TABLE_ADDRESS: " << INODE_TABLE_ADDRESS << std::endl;
-	uint16_t sector_addr = INODE_TABLE_ADDRESS + (inode_number / INODES_PER_SECTOR) * SECTOR_SIZE;
-	uint16_t offset = (inode_number % INODES_PER_SECTOR) * sizeof(inode);
+	uint32_t sector_addr = INODE_TABLE_ADDRESS + (inode_number / INODES_PER_SECTOR) * SECTOR_SIZE;
+	uint32_t offset = (inode_number % INODES_PER_SECTOR) * sizeof(inode);
 
-	std::array<uint16_t, 2> locations = {}; // location[0] = sector, location[1] = offset
+	std::array<uint32_t, 2> locations = {}; // location[0] = sector, location[1] = offset
 
 	locations[0] = sector_addr;
 	locations[1] = offset;
-	//std::cout << "sector_addr: " << locations[0] << " offset: " << locations[1] << std::endl;
 	return locations;
 }
 
@@ -385,7 +381,7 @@ std::vector<int> MyFs::write_to_new_sectors(std::string content)
 			content.clear();
 		}
 
-		int free_sector_number = search_free_bit(BITMAP_CONTENT_ADDRESS);
+		int free_sector_number = search_free_bit(BITMAP_CONTENT_ADDRESS, BITMAP_CONTENT_SECTORS_REQUIRED);
 		written_sectors.push_back(free_sector_number);
 
 		uint32_t addr = CONTENT_ADDRESS + (free_sector_number * SECTOR_SIZE);
@@ -571,27 +567,33 @@ int MyFs::find_inode_number(const std::string& file_name, const dir_entry_list& 
 }
 
 
-int MyFs::search_free_bit(const uint16_t& addr)
+uint32_t MyFs::search_free_bit(const uint32_t& start_addr, const uint16_t& amount_of_sectors)
 {
+	uint32_t curr_addr = start_addr;
+	uint32_t end_addr = start_addr + amount_of_sectors * SECTOR_SIZE;
+
 	char buffer[SECTOR_SIZE] = {0};
 
-	blkdevsim->read(addr, buffer);
-
-	for (size_t i = 0; i < SECTOR_SIZE; i++)
+	while (curr_addr < end_addr)
 	{
-		if (buffer[i] == 255) continue; // all byte(8 sectors) are full.
-
-		for (int bit = 0; bit < 8; bit++)
+		blkdevsim->read(curr_addr, buffer);
+		for (size_t i = 0; i < SECTOR_SIZE; i++)
 		{
-			if (!((buffer[i] >> bit) & 1))
+			if (buffer[i] == 255) continue; // all byte(8 sectors) are full.
+
+			for (int bit = 0; bit < 8; bit++)
 			{
-				buffer[i] |= 1 << bit; 
-				blkdevsim->write(addr, buffer);
-				
-				int sector_num = (i * 8) + bit;
-				return sector_num;
+				if (!((buffer[i] >> bit) & 1))
+				{
+					buffer[i] |= 1 << bit; 
+					blkdevsim->write(curr_addr, buffer);
+					
+					uint32_t sector_num = (i * 8) + bit;
+					return sector_num;
+				}
 			}
 		}
+		curr_addr += SECTOR_SIZE;
 	}
 	throw std::runtime_error("Error: no free sector");
 }

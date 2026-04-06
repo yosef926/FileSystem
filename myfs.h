@@ -74,7 +74,7 @@ public:
 	// Technical
 	uint32_t pre_create_checks(const std::string& path);
 	std::vector<std::string> split_path_by_slash(const std::string& path);
-	int search_free_bit(const uint16_t& addr);
+	uint32_t search_free_bit(const uint32_t& start_addr, const uint16_t& amount_of_sectors);
 	std::string get_parent_path(const std::string& path);
 	std::string get_file_name_from_path(const std::string& path);
 	void does_file_exists(const dir_entry_list& parent_entries, const std::string& file_name);
@@ -98,7 +98,7 @@ public:
 	std::vector<inode> map_sector_to_inodes(const std::vector<uint8_t>& buffer);
 	inode get_inode(const uint32_t& inode_number);
 	int find_inode_number(const std::string& file_name, const dir_entry_list& dirent);
-	std::array<uint16_t, 2> calc_inode_write_locations(uint16_t inode_number);
+	std::array<uint32_t, 2> calc_inode_write_locations(uint32_t inode_number);
 	uint32_t get_parent_inode_number(const std::string& parent_path);
 
 

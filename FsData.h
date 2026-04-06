@@ -18,9 +18,9 @@ static constexpr uint8_t MYFS_MAGIC[4] = { 'M', 'Y', 'F', 'S' };
 
 struct myfs_header {
     uint8_t magic[sizeof(MYFS_MAGIC)];
-    uint16_t version;
-    uint16_t sector_size;
-    uint16_t bitmap_content_address;
+    uint32_t version;
+    uint32_t sector_size;
+    uint32_t bitmap_content_address;
     uint32_t bitmap_table_address;
     uint32_t inode_table_address;
     uint32_t content_address;
