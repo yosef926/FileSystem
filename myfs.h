@@ -82,12 +82,12 @@ public:
 
 
 	// Files
-	void update_entry(const std::string& content, const std::vector<int>& sectors, DirEntry& entry);	
-	void handle_write_content(DirEntry& entry, std::string& content);
-	std::vector<int> write_to_new_sectors(std::string content);
-	std::vector<int> append_to_last_sector(std::string& content, uint32_t last_sector_addr, int remaining_space_in_last_sector);
-	std::vector<int> append_content_to_file(std::string content, DirEntry& entry);
-	int calc_remain_space_in_last_sector(uint32_t last_sector_addr);
+	void update_entry(const DirEntry& file_entry, const inode& parent_inode);
+	std::vector<uint32_t> handle_write_content(DirEntry& entry, std::string& content);
+	std::vector<uint32_t> write_to_new_sectors(std::string content);
+	std::vector<uint32_t> append_to_last_sector(std::string& content, uint32_t last_sector_addr, int remaining_space_in_last_sector);
+	std::vector<uint32_t> append_content_to_file(std::string content, DirEntry& entry);
+	uint16_t calc_remain_space_in_last_sector(uint32_t last_sector_addr);
 	bool does_entry_exists(const dir_entry_list& parent_entries, const std::string& file_name);
 	DirEntry initialize_entry(const std::string& file_name, uint16_t is_dir, const uint32_t& inode_number);
 	DirEntry get_file_entry_from_path(const std::string& path);
@@ -98,15 +98,12 @@ public:
 	inode initialize_inode();
 	std::vector<inode> map_sector_to_inodes(const std::vector<uint8_t>& buffer);
 	inode get_inode(const uint32_t& inode_number);
-	int find_inode_number(const std::string& file_name, const dir_entry_list& dirent);
 	std::array<uint32_t, 2> calc_inode_write_locations(uint32_t inode_number);
 	uint32_t get_parent_inode_number(const std::string& parent_path);
+	void update_inode(const std::vector<uint32_t>& written_sectors, inode& file_inode);
 
 
 	// Folders(entries, path, etc...)
-	void handle_adding_entry_to_dir(const inode_list& dirent, const DirEntry& entry);
-	DirEntry create_dir_entry(const std::string& file_name, const uint32_t& inode_number);
-	bool does_dir_last_sector_full(const inode& parent_dir);
 	int calc_offset_for_dirEntry(DirEntry* dirEntry_array);
 	void write_entry_to_dir(const DirEntry& entry, inode& dir_inode, const uint32_t& inode_number);
 	dir_entry_list get_dir_entries(const uint32_t& inode_number);

@@ -364,10 +364,10 @@ std::string MyFs::get_content(const std::string& path)
 }
 
 
-std::vector<int> MyFs::write_to_new_sectors(std::string content)
+std::vector<uint32_t> MyFs::write_to_new_sectors(std::string content)
 {
 	std::string curr_sector_content;
-	std::vector<int> written_sectors;
+	std::vector<uint32_t> written_sectors = {};
 
 	while (content.size() != 0)
 	{
@@ -382,7 +382,7 @@ std::vector<int> MyFs::write_to_new_sectors(std::string content)
 			content.clear();
 		}
 
-		int free_sector_number = search_free_bit(BITMAP_CONTENT_ADDRESS, BITMAP_CONTENT_SECTORS_REQUIRED);
+		uint32_t free_sector_number = search_free_bit(BITMAP_CONTENT_ADDRESS, BITMAP_CONTENT_SECTORS_REQUIRED);
 		written_sectors.push_back(free_sector_number);
 
 		uint32_t addr = CONTENT_ADDRESS + (free_sector_number * SECTOR_SIZE);
@@ -396,14 +396,15 @@ std::vector<int> MyFs::write_to_new_sectors(std::string content)
 }
 
 
-std::vector<int> MyFs::append_content_to_file(std::string content, DirEntry& entry)
+std::vector<uint32_t> MyFs::append_content_to_file(std::string content, DirEntry& entry)
 {
 	inode file_inode = get_inode(entry.inode_number);
 
-	int last_sector = file_inode.data_locations[(entry.file_size / SECTOR_SIZE) - 1];
+	uint32_t last_sector = file_inode.data_locations[(entry.file_size / SECTOR_SIZE)];
+
 	uint32_t last_sector_addr = CONTENT_ADDRESS + (last_sector * SECTOR_SIZE);
 
-	int remaining_space_in_last_sector = calc_remain_space_in_last_sector(last_sector_addr);
+	uint16_t remaining_space_in_last_sector = calc_remain_space_in_last_sector(last_sector_addr);
 
 	if (remaining_space_in_last_sector > 0)
 	{
@@ -416,7 +417,7 @@ std::vector<int> MyFs::append_content_to_file(std::string content, DirEntry& ent
 }
 
 
-std::vector<int> MyFs::append_to_last_sector(std::string& content, uint32_t last_sector_addr, int remaining_space_in_last_sector)
+std::vector<uint32_t> MyFs::append_to_last_sector(std::string& content, uint32_t last_sector_addr, int remaining_space_in_last_sector)
 {
 	MyFs::buffer_data_type sector_data = get_sector_data(last_sector_addr);
 	uint32_t offset = SECTOR_SIZE - remaining_space_in_last_sector;
@@ -444,7 +445,7 @@ MyFs::buffer_data_type MyFs::get_sector_data(uint32_t addr)
 }
 
 
-int MyFs::calc_remain_space_in_last_sector(uint32_t last_sector_addr)
+uint16_t MyFs::calc_remain_space_in_last_sector(uint32_t last_sector_addr)
 {
 	MyFs::buffer_data_type data = get_sector_data(last_sector_addr);
 
@@ -458,10 +459,9 @@ int MyFs::calc_remain_space_in_last_sector(uint32_t last_sector_addr)
 }
 
 
-void MyFs::handle_write_content(DirEntry& entry, std::string& content)
+std::vector<uint32_t> MyFs::handle_write_content(DirEntry& entry, std::string& content)
 {
-	/*
-	std::vector<int> written_sectors;
+	std::vector<uint32_t> written_sectors;
 
 	if (entry.file_size == 0)
 	{
@@ -471,8 +471,7 @@ void MyFs::handle_write_content(DirEntry& entry, std::string& content)
 	{
 		written_sectors = append_content_to_file(content, entry);
 	}
-	update_file_headers(content, written_sectors, entry);
-	*/
+	return written_sectors;
 }
 
 
@@ -494,11 +493,76 @@ DirEntry MyFs::get_file_entry_from_path(const std::string& path)
 }
 
 
-void MyFs::set_content(const std::string& path, std::string& content)
+void MyFs::update_inode(const std::vector<uint32_t>& written_sectors, inode& file_inode)
 {
+	uint8_t index = 0;
+
+    for (size_t i = 0; i < MAX_SECTORS_FOR_A_FILE; i++)
+    {
+		if (index == written_sectors.size()) break;
+
+		if (file_inode.data_locations[i] == std::numeric_limits<uint32_t>::max())
+        {
+            file_inode.data_locations[i] = written_sectors.at(index);
+            index++;
+        }
+    }
+}
+
+
+void MyFs::set_content(const std::string& path, std::string& content)
+{	
 	DirEntry file_entry = get_file_entry_from_path(path);
-	
-	content.push_back('\0');
+
+	inode file_inode = get_inode(file_entry.inode_number);
+
+	std::vector<uint32_t> written_sectors = handle_write_content(file_entry, content);
+
+	update_inode(written_sectors, file_inode);
+
+	write_new_inode(file_entry.inode_number, file_inode);
+	//update_all_dirs_above_file_entries(content.size(), );
+
+	uint32_t parent_inode_number = get_parent_inode_number(path);
+	inode parent_inode = get_inode(parent_inode_number);
+
+	file_entry.file_size += content.size();
+
+	update_entry(file_entry, parent_inode);
+}
+
+
+void MyFs::update_entry(const DirEntry& file_entry, const inode& parent_inode)
+{
+	dir_entry_list entries;
+	dir_entry_list curr_sector_entries(ENTRIES_PER_SECTOR);
+	uint32_t addr;
+	uint8_t entry_number = 0;
+
+	for (int i = 0; i < MAX_SECTORS_FOR_A_FILE; i++)
+	{
+		if (parent_inode.data_locations[i] != std::numeric_limits<uint32_t>::max())
+		{
+			addr = CONTENT_ADDRESS + SECTOR_SIZE * parent_inode.data_locations[i];
+			blkdevsim->read(addr, reinterpret_cast<char*>(curr_sector_entries.data()));
+
+			for (const auto& curr_entry : curr_sector_entries)
+			{
+				if(curr_entry.name[0] == 0) break;
+				
+				else if (std::memcmp(file_entry.name, curr_entry.name, NAME_SIZE) == 0)
+				{
+					curr_sector_entries[entry_number] = file_entry;
+					blkdevsim->write(addr, reinterpret_cast<char*>(curr_sector_entries.data()));
+					return;
+				}
+				entry_number++;
+			}
+		}
+		else break;
+		entry_number = 0;
+	}
+	throw std::runtime_error("Error: path is incorrect");
 }
 
 
@@ -518,7 +582,6 @@ MyFs::dir_entry_list MyFs::get_dir_entries(const uint32_t& inode_number)
 
 			for (const auto& dir_entry : curr_sector_entries)
 			{
-				//std::cout << dir_entry.inode_number << std::endl;
 				if (dir_entry.name[0] != 0) entries.push_back(dir_entry);
 				else break;
 			}
@@ -560,19 +623,6 @@ void MyFs::fill_file_with_null()
 		blkdevsim->write(addr, buffer.data());
 		addr += SECTOR_SIZE;
 	}
-}
-
-
-int MyFs::find_inode_number(const std::string& file_name, const dir_entry_list& dirent)
-{
-	for (const DirEntry& entry : dirent)
-	{
-		if (std::memcmp(file_name.c_str(), entry.name, NAME_SIZE) == 0)
-		{
-			return entry.inode_number;
-		}
-	}
-	throw std::runtime_error("Error: file not found");
 }
 
 
@@ -621,23 +671,6 @@ bool MyFs::does_entry_exists(const dir_entry_list& parent_entries, const std::st
 }
 
 
-void MyFs::update_entry(const std::string& content, const std::vector<int>& sectors, DirEntry& entry) 
-{
-	/*
-	entry.file_size += (content.size());
-;
-	size_t start_idx = entry.number_of_sectors;
-	for(size_t i = 0; i < sectors.size(); i++) 
-	{
-		entry.data_locations[start_idx + i] = sectors[i];
-	}
-
-	file.number_of_sectors += sectors.size();
-	write_new_file_metadata(file);
-	*/
-}
-
-
 bool MyFs::is_sector_full(int sector_to_check, size_t jump_size)
 {
 	char buffer[SECTOR_SIZE];
@@ -677,7 +710,6 @@ int MyFs::resolve_path(const std::vector<std::string>& parts)
 		{
 			if (std::strncmp(reinterpret_cast<const char*>(curr_entries.at(j).name), parts.at(i).c_str(), NAME_SIZE) == 0 && curr_entries.at(j).is_dir)
 			{
-				//std::cout << curr_entries.at(j).inode_number << std::endl;
 				if (i == parts.size() - 1) return curr_entries.at(j).inode_number;
 				curr_entries = get_dir_entries(curr_entries.at(j).inode_number);
 				found = true;
