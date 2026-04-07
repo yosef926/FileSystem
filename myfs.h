@@ -4,6 +4,8 @@
 #include <memory>
 #include <vector>
 #include <stdint.h>
+#include <regex>
+
 #include "blkdev.h"
 #include "FsData.h"
 
@@ -12,6 +14,7 @@ class MyFs {
 private:
 	// Global Constants for the Filesystem
 	BlockDeviceSimulator *blkdevsim;
+	std::regex pattern{R"(^/[^/]*$)"};
 
 public:
 	MyFs(BlockDeviceSimulator *blkdevsim_);
@@ -48,7 +51,7 @@ public:
 	 * @param path the file path (e.g. "/somefile")
 	 * @param content the file content string
 	 */
-	void set_content(const std::string& path, std::string& content);
+	void set_content(std::string& path, std::string& content);
 
 	/**
 	 * Returns a list of a files in a directory.
@@ -83,6 +86,7 @@ public:
 
 	// Files
 	void update_entry(const DirEntry& file_entry, const inode& parent_inode);
+	void update_entries_recursive(std::string& path, const std::string& content);
 	std::vector<uint32_t> handle_write_content(DirEntry& entry, std::string& content);
 	std::vector<uint32_t> write_to_new_sectors(std::string content);
 	std::vector<uint32_t> append_to_last_sector(std::string& content, uint32_t last_sector_addr, int remaining_space_in_last_sector);

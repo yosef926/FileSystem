@@ -37,23 +37,6 @@ void MyFs::format() {
 	insert_fs_headers();
 
 	create_file("/", true);
-	/*
-	create_file("/dir2", true);
-
-	create_file("/dir3", true);
-
-	create_file("/dir2/file1", false);
-
-	for (int i = 0; i < 3; i++)
-	{
-		create_file("/dir3/" + std::to_string(i), false);
-	}
-
-	for (int i = 0; i < 16; i++)
-	{
-		create_file("/dir2/" + std::to_string(i), false);
-	}
-	*/
 }
 
 
@@ -510,7 +493,7 @@ void MyFs::update_inode(const std::vector<uint32_t>& written_sectors, inode& fil
 }
 
 
-void MyFs::set_content(const std::string& path, std::string& content)
+void MyFs::set_content(std::string& path, std::string& content)
 {	
 	DirEntry file_entry = get_file_entry_from_path(path);
 	if (file_entry.is_dir) throw std::runtime_error("Error: can't edit a folder");
@@ -522,12 +505,25 @@ void MyFs::set_content(const std::string& path, std::string& content)
 	update_inode(written_sectors, file_inode);
 
 	write_new_inode(file_entry.inode_number, file_inode);
-	//update_all_dirs_above_file_entries(content.size(), );
 
-	uint32_t parent_inode_number = get_parent_inode_number(path);
+	update_entries_recursive(path, content);
+}
+
+
+void MyFs::update_entries_recursive(std::string& path, const std::string& content)
+{
+	if (path == "/") return;
+	
+	std::string parent_path = get_parent_path(path);
+	update_entries_recursive(parent_path, content);
+
+	int parent_inode_number = get_parent_inode_number(path);
 	inode parent_inode = get_inode(parent_inode_number);
 
+	DirEntry file_entry = get_file_entry_from_path(path);
+	std::cout << file_entry.name << std::endl;
 	file_entry.file_size += content.size();
+
 	update_entry(file_entry, parent_inode);
 }
 
