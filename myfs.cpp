@@ -513,6 +513,7 @@ void MyFs::update_inode(const std::vector<uint32_t>& written_sectors, inode& fil
 void MyFs::set_content(const std::string& path, std::string& content)
 {	
 	DirEntry file_entry = get_file_entry_from_path(path);
+	if (file_entry.is_dir) throw std::runtime_error("Error: can't edit a folder");
 
 	inode file_inode = get_inode(file_entry.inode_number);
 
@@ -527,7 +528,6 @@ void MyFs::set_content(const std::string& path, std::string& content)
 	inode parent_inode = get_inode(parent_inode_number);
 
 	file_entry.file_size += content.size();
-
 	update_entry(file_entry, parent_inode);
 }
 
