@@ -326,24 +326,26 @@ DirEntry MyFs::initialize_entry(const std::string& file_name, uint16_t is_dir, c
 
 std::string MyFs::get_content(const std::string& path)
 {
-	/*
-	inode_list dirent = list_root_entries();
-	inode file = find_inode(path, dirent);
+    std::string content;
+    DirEntry file_entry = get_file_entry_from_path(path);
+    inode file_inode = get_inode(file_entry.inode_number);
 
-	std::string ans = "";
-	char sector_buffer[SECTOR_SIZE];
+    for (size_t i = 0; i < MAX_SECTORS_FOR_A_FILE; i++)
+    {
+        uint32_t sector_number = file_inode.data_locations[i];
+        
+        if (sector_number == std::numeric_limits<uint32_t>::max()) break;
 
-	for (size_t i = 0; i < file.number_of_sectors; i++)
-	{
-		uint32_t addr = CONTENT_ADDRESS + (file.data_locations[i] * SECTOR_SIZE);
-		blkdevsim->read(addr, sector_buffer);
-		ans.append(sector_buffer, SECTOR_SIZE);
-	}
+        uint32_t phys_addr = CONTENT_ADDRESS + (sector_number * SECTOR_SIZE);
+        buffer_data_type sector_data = get_sector_data(phys_addr);
 
-	return ans;
-	*/
-	std::string x = "yosef";
-	return x;
+		for (size_t i = 0; i < sector_data.size(); i++)
+		{
+			if (sector_data.at(i) == '\0') break;
+			content += sector_data.at(i);
+		}
+    }
+    return content;
 }
 
 
@@ -521,7 +523,6 @@ void MyFs::update_entries_recursive(std::string& path, const std::string& conten
 	inode parent_inode = get_inode(parent_inode_number);
 
 	DirEntry file_entry = get_file_entry_from_path(path);
-	std::cout << file_entry.name << std::endl;
 	file_entry.file_size += content.size();
 
 	update_entry(file_entry, parent_inode);
