@@ -123,7 +123,7 @@ void MyFs::does_file_exists(const dir_entry_list& parent_entries, const std::str
 	{
 		if (std::memcmp(dir_entry.name, file_name.c_str(), file_name.size()) == 0)
 		{
-			throw std::runtime_error("Failed to create file: A file with this name already exists in this folder\n");
+			throw std::runtime_error("Error: A file with this name already exists in this folder\n");
 		}
 	}
 }
@@ -328,7 +328,10 @@ std::string MyFs::get_content(const std::string& path)
 {
     std::string content;
     DirEntry file_entry = get_file_entry_from_path(path);
-    inode file_inode = get_inode(file_entry.inode_number);
+ 
+	if (file_entry.is_dir) throw std::runtime_error("Error: cat operation is not possible on directory");
+
+	inode file_inode = get_inode(file_entry.inode_number);
 
     for (size_t i = 0; i < MAX_SECTORS_FOR_A_FILE; i++)
     {
