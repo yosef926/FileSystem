@@ -15,7 +15,6 @@ const std::string CONTENT_CMD = "cat";
 const std::string CREATE_FILE_CMD = "touch";
 const std::string CREATE_DIR_CMD = "mkdir";
 const std::string EDIT_CMD = "edit";
-const std::string TREE_CMD = "tree";
 const std::string HELP_CMD = "help";
 const std::string EXIT_CMD = "exit";
 
@@ -37,34 +36,6 @@ std::vector<std::string> split_cmd(std::string cmd) {
 		ans.push_back(part);
 
 	return ans;
-}
-
-static void recursive_print(MyFs &myfs, std::string path, std::string prefix="") {
-	/*
-	MyFs::inode_list dlist = myfs.list_all_inodes(path);
-	for (size_t i=0; i < dlist.size(); i++) {
-		inode& curr_inode = dlist[i];
-
-		std::string entry_prefix = prefix;
-		if (i == dlist.size()-1)
-			entry_prefix += "└── ";
-		else
-			entry_prefix += "├── ";
-
-		std::cout << entry_prefix << curr_inode.name << std::endl;
-
-		if (curr_inode.is_dir) {
-			std::string dir_prefix = prefix;
-
-			if (i == dlist.size()-1)
-				dir_prefix += "    ";
-			else
-				dir_prefix += "│   ";
-			recursive_print(myfs, path + "/" + (char*)curr_inode.name, dir_prefix);
-		}
-	}
-	*/
-	return;
 }
 
 
@@ -122,8 +93,6 @@ int main(int argc, char **argv)
 					std::cout << myfs.get_content(cmd[1]) << std::endl;
 				else
 					std::cout << CONTENT_CMD << ": file path requested" << std::endl;
-			} else if (cmd[0] == TREE_CMD) {
-				recursive_print(myfs, "");
 			} else if (cmd[0] == EDIT_CMD) {
 				if (cmd.size() == 2) {
 					std::cout << "Enter new file content" << std::endl;

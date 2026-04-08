@@ -9,7 +9,6 @@
 #include <vector>
 #include <array>
 #include <limits>
-#include <unistd.h>
 
 #include "myfs.h"
 #include "FsData.h"
@@ -38,21 +37,6 @@ void MyFs::format() {
 	insert_fs_headers();
 
 	create_file("/", true);
-	create_file("file", false);
-
-	std::string content =
-						  "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
-						  "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
-						  "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
-						  "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
-						  "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
-						  "123456789012";
-
-	for (int i = 0; i < MAX_SECTORS_FOR_A_FILE; i++)
-	{
-		std::string var = "file";
-		set_content(var, content);
-	}
 }
 
 
@@ -245,19 +229,6 @@ uint32_t MyFs::get_parent_inode_number(const std::string& path)
 	}
 	throw std::runtime_error("Error: couldn't find parent inode");
 }
-
-
-/*
-bool MyFs::does_dir_last_sector_full(const inode& parent_dir)
-{
-	int last_sector_addr = parent_dir.data_locations[parent_dir.number_of_sectors - 1];
-
-	MyFs::buffer_data_type buffer = get_sector_data(last_sector_addr);
-
-	if (buffer.at(SECTOR_SIZE - sizeof(DirEntry)) != '\0') return true;
-	return false;
-}
-*/
 
 
 void MyFs::write_entry_to_dir(const DirEntry& entry, inode& dir_inode, const uint32_t& inode_number)
@@ -498,7 +469,7 @@ DirEntry MyFs::get_file_entry_from_path(const std::string& path)
 			return curr_entry;
 		}
 	}
-	throw std::runtime_error("Error: there is no file *" + file_name + "* in this directory");
+	throw std::runtime_error("Error: there is no such file *" + file_name + "* in this directory");
 }
 
 

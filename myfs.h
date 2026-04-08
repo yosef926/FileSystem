@@ -14,8 +14,7 @@ class MyFs {
 private:
 	// Global Constants for the Filesystem
 	BlockDeviceSimulator *blkdevsim;
-	std::regex pattern{R"(^/[^/]*$)"};
-
+	
 public:
 	MyFs(BlockDeviceSimulator *blkdevsim_);
 
