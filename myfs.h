@@ -82,6 +82,7 @@ public:
 	std::string get_file_name_from_path(const std::string& path);
 	void does_file_exists(const dir_entry_list& parent_entries, const std::string& file_name);
 	void does_inode_table_full();
+	void check_if_file_reach_max_data(const inode& file_inode);
 
 
 	// Files

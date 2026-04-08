@@ -418,12 +418,10 @@ std::vector<uint32_t> MyFs::append_content_to_file(std::string content, DirEntry
 
 	if (remaining_space_in_last_sector > 0)
 	{
-		std::cout << "hello" << std::endl;
 		return append_to_last_sector(content, last_sector_addr, remaining_space_in_last_sector, written_sectors);
 	}
 	else
 	{
-		std::cout << "world" << std::endl;
 		return write_to_new_sectors(content, written_sectors);
 	}
 }
@@ -520,6 +518,12 @@ void MyFs::update_inode(const std::vector<uint32_t>& written_sectors, inode& fil
     }
 }
 
+void MyFs::check_if_file_reach_max_data(const inode& file_inode)
+{
+	if (file_inode.data_locations[MAX_SECTORS_FOR_A_FILE - 1] != std::numeric_limits<uint32_t>::max() && is_sector_full(file_inode.data_locations[MAX_SECTORS_FOR_A_FILE - 1], 1))
+		throw std::runtime_error("Error: file has reached limit size");
+}
+
 
 void MyFs::set_content(std::string& path, std::string& content)
 {
@@ -528,12 +532,8 @@ void MyFs::set_content(std::string& path, std::string& content)
 
 	inode file_inode = get_inode(file_entry.inode_number);
 
-	// check - file not reach max data
-	uint32_t dir_inode_number = get_parent_inode_number(path);
-
-	inode dir_inode = get_inode(dir_inode_number);
-
-	get_sector_number_to_write_entry(dir_inode);
+	// check - file reach max data_locations
+	check_if_file_reach_max_data(file_inode);
 
 	std::vector<uint32_t> written_sectors = handle_write_content(file_entry, content);
 
