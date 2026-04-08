@@ -9,6 +9,7 @@
 #include <vector>
 #include <array>
 #include <limits>
+#include <unistd.h>
 
 #include "myfs.h"
 #include "FsData.h"
@@ -37,6 +38,21 @@ void MyFs::format() {
 	insert_fs_headers();
 
 	create_file("/", true);
+	create_file("file", false);
+
+	std::string content =
+						  "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+						  "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+						  "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+						  "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+						  "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
+						  "123456789012";
+
+	for (int i = 0; i < MAX_SECTORS_FOR_A_FILE; i++)
+	{
+		std::string var = "file";
+		set_content(var, content);
+	}
 }
 
 
@@ -280,7 +296,7 @@ uint32_t MyFs::get_sector_number_to_write_entry(inode& dir_inode)
             return dir_inode.data_locations[i];
         }
     }
-	throw std::runtime_error("Error: directory is full (" + std::to_string(ENTRIES_PER_SECTOR * MAX_SECTORS_FOR_A_FILE) + ")");
+	throw std::runtime_error("Error: this directory is already full (" + std::to_string(ENTRIES_PER_SECTOR * MAX_SECTORS_FOR_A_FILE) + " files)");
 }
 
 
@@ -352,10 +368,9 @@ std::string MyFs::get_content(const std::string& path)
 }
 
 
-std::vector<uint32_t> MyFs::write_to_new_sectors(std::string content)
+std::vector<uint32_t> MyFs::write_to_new_sectors(std::string content, std::vector<uint32_t> written_sectors)
 {
 	std::string curr_sector_content;
-	std::vector<uint32_t> written_sectors = {};
 
 	while (content.size() != 0)
 	{
@@ -384,28 +399,37 @@ std::vector<uint32_t> MyFs::write_to_new_sectors(std::string content)
 }
 
 
-std::vector<uint32_t> MyFs::append_content_to_file(std::string content, DirEntry& entry)
+std::vector<uint32_t> MyFs::append_content_to_file(std::string content, DirEntry& entry, std::vector<uint32_t> written_sectors)
 {
 	inode file_inode = get_inode(entry.inode_number);
+	uint16_t remaining_space_in_last_sector = 0;
 
 	uint32_t last_sector = file_inode.data_locations[(entry.file_size / SECTOR_SIZE)];
+	if (last_sector == std::numeric_limits<uint32_t>::max())
+	{
+		last_sector = search_free_bit(BITMAP_CONTENT_ADDRESS, BITMAP_CONTENT_SECTORS_REQUIRED);
+		written_sectors.push_back(last_sector);
+		remaining_space_in_last_sector = 512;
+	}
 
 	uint32_t last_sector_addr = CONTENT_ADDRESS + (last_sector * SECTOR_SIZE);
 
-	uint16_t remaining_space_in_last_sector = calc_remain_space_in_last_sector(last_sector_addr);
+	remaining_space_in_last_sector = calc_remain_space_in_last_sector(last_sector_addr);
 
 	if (remaining_space_in_last_sector > 0)
 	{
-		return append_to_last_sector(content, last_sector_addr, remaining_space_in_last_sector);
+		std::cout << "hello" << std::endl;
+		return append_to_last_sector(content, last_sector_addr, remaining_space_in_last_sector, written_sectors);
 	}
 	else
 	{
-		return write_to_new_sectors(content);
+		std::cout << "world" << std::endl;
+		return write_to_new_sectors(content, written_sectors);
 	}
 }
 
 
-std::vector<uint32_t> MyFs::append_to_last_sector(std::string& content, uint32_t last_sector_addr, int remaining_space_in_last_sector)
+std::vector<uint32_t> MyFs::append_to_last_sector(std::string& content, uint32_t last_sector_addr, int remaining_space_in_last_sector, std::vector<uint32_t> written_sectors)
 {
 	MyFs::buffer_data_type sector_data = get_sector_data(last_sector_addr);
 	uint32_t offset = SECTOR_SIZE - remaining_space_in_last_sector;
@@ -419,9 +443,9 @@ std::vector<uint32_t> MyFs::append_to_last_sector(std::string& content, uint32_t
 	if (content.size() > static_cast<size_t>(remaining_space_in_last_sector))
 	{
         std::string leftovers = content.substr(bytes_to_copy); 
-        return write_to_new_sectors(leftovers);
+        return write_to_new_sectors(leftovers, written_sectors);
 	}
-	return {};
+	return written_sectors;
 }
 
 
@@ -449,17 +473,16 @@ uint16_t MyFs::calc_remain_space_in_last_sector(uint32_t last_sector_addr)
 
 std::vector<uint32_t> MyFs::handle_write_content(DirEntry& entry, std::string& content)
 {
-	std::vector<uint32_t> written_sectors;
+	std::vector<uint32_t> written_sectors = {};
 
 	if (entry.file_size == 0)
 	{
-		written_sectors = write_to_new_sectors(content);
+		return write_to_new_sectors(content, written_sectors);
 	}
 	else
 	{
-		written_sectors = append_content_to_file(content, entry);
+		return append_content_to_file(content, entry, written_sectors);
 	}
-	return written_sectors;
 }
 
 
@@ -499,11 +522,18 @@ void MyFs::update_inode(const std::vector<uint32_t>& written_sectors, inode& fil
 
 
 void MyFs::set_content(std::string& path, std::string& content)
-{	
+{
 	DirEntry file_entry = get_file_entry_from_path(path);
 	if (file_entry.is_dir) throw std::runtime_error("Error: can't edit a folder");
 
 	inode file_inode = get_inode(file_entry.inode_number);
+
+	// check - file not reach max data
+	uint32_t dir_inode_number = get_parent_inode_number(path);
+
+	inode dir_inode = get_inode(dir_inode_number);
+
+	get_sector_number_to_write_entry(dir_inode);
 
 	std::vector<uint32_t> written_sectors = handle_write_content(file_entry, content);
 

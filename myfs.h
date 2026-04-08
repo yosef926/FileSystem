@@ -88,9 +88,9 @@ public:
 	void update_entry(const DirEntry& file_entry, const inode& parent_inode);
 	void update_entries_recursive(std::string& path, const std::string& content);
 	std::vector<uint32_t> handle_write_content(DirEntry& entry, std::string& content);
-	std::vector<uint32_t> write_to_new_sectors(std::string content);
-	std::vector<uint32_t> append_to_last_sector(std::string& content, uint32_t last_sector_addr, int remaining_space_in_last_sector);
-	std::vector<uint32_t> append_content_to_file(std::string content, DirEntry& entry);
+	std::vector<uint32_t> write_to_new_sectors(std::string content, std::vector<uint32_t> written_sectors);
+	std::vector<uint32_t> append_to_last_sector(std::string& content, uint32_t last_sector_addr, int remaining_space_in_last_sector, std::vector<uint32_t> written_sectors);
+	std::vector<uint32_t> append_content_to_file(std::string content, DirEntry& entry, std::vector<uint32_t> written_sectors);
 	uint16_t calc_remain_space_in_last_sector(uint32_t last_sector_addr);
 	bool does_entry_exists(const dir_entry_list& parent_entries, const std::string& file_name);
 	DirEntry initialize_entry(const std::string& file_name, uint16_t is_dir, const uint32_t& inode_number);
