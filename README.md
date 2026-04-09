@@ -24,6 +24,17 @@ This project serves as a deep dive into how data is organized on physical storag
 
 ---
 
+## Configuration & Scaling
+The file system is designed with a **dynamic storage architecture**. You can easily scale the virtual disk size to fit your needs (up to **1GB**).
+
+To change the disk size:
+1. Open `blkdev.h`.
+2. Locate the `DEVICE_SIZE` constant.
+3. Update the value to your desired capacity (in bytes).
+4. Recompile the project using `make`.
+
+---
+
 ## Supported Commands
 Interact with the file system using the following shell commands:
 
@@ -75,5 +86,3 @@ Through the development of this project, I gained hands-on experience in:
 
 ## Engineering Insights
 The core of this project is the Sector Manager, which simulates raw disk I/O. One of the primary technical challenges was implementing the pointer logic within the Inodes to ensure that as a file grows, the system correctly identifies and links the next available sector on the virtual disk without data overlap.
-
-The architecture was designed with flexibility in mind; the abstraction layer between the logic and the physical block device allows for the 1GB capacity limit while maintaining consistent performance.
