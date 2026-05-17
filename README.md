@@ -60,7 +60,7 @@ Interact with the file system using the following shell commands:
 ### Build and Run
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/yosef926/FileSystem](https://github.com/yosef926/FileSystem)
+   git clone https://github.com/yosef926/FileSystem.git
    cd FileSystem
 2. **Compile the engine**
    ```bash
