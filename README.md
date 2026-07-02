@@ -74,7 +74,6 @@ Interact with the file system using the following shell commands:
 ## Future Roadmap
 While the current version (v1.0) is a functional prototype, I plan to implement the following features to further simulate a production-grade file system:
 * **File Deletion & Reclamation:** Implementing a mechanism to free up Inodes and sectors when files are removed.
-* **Nested Directories:** Expanding the path resolution logic to support deeply nested folder structures.
 * **File Permissions:** Adding Read/Write/Execute flags to the Inode metadata.
 * **Multi-threading Support:** Implementing mutexes to handle concurrent access to the virtual disk.
 
