@@ -8,7 +8,7 @@ A specialized **low-level systems project** built in **C++** that simulates a Un
 This project serves as a deep dive into how data is organized on physical storage. By bypassing the OS's native file system, this engine manages its own **virtual disk image**, handling the mapping between logical files and physical sectors.
 
 ### Key Features
-* **Inode Metadata Management:** Custom structures to store file permissions, size, and data block pointers.
+* **Inode Metadata Management:** Custom structures to store size and data block pointers.
 * **Sector-Based Storage:** Direct management of virtual disk sectors, ensuring data is written and read at specific byte offsets.
 * **Path Resolution:** Logic to navigate and locate files within a directory structure.
 * **Custom Interactive Shell:** A built-in CLI for real-time interaction with the file system.
